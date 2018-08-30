@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <RootNamespace>Ouroboros</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\paket-files\ameier38\fsharp-result\Result.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/Result.fs</Link>
+    </Compile>
+    <Compile Include="Ouroboros.SimpleTypes.fs" />
+    <Compile Include="Ouroboros.PublicTypes.fs" />
+    <Compile Include="Ouroboros.EventStore.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Common\Common.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

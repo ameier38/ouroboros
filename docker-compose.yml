@@ -1,0 +1,11 @@
+version: '3'
+services:
+  eventstore:
+    image: eventstore/eventstore
+    ports:
+     - "2113:2113"
+     - "1113:1113"
+  simba:
+    image: ameier38/moneylion-simba:latest
+    build:
+      context: .

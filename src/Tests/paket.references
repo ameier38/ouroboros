@@ -1,0 +1,6 @@
+File: Result.fs
+File: DotEnv.fs
+Expecto
+Expecto.BenchmarkDotNet
+Expecto.FsCheck
+Vertigo.Json
