@@ -12,27 +12,34 @@ COPY paket.lock .
 
 # copy Common
 COPY src/Common/Common.fsproj src/Common/
+COPY src/Common/paket.references src/Common/
 
 # copy Ouroboros
-COPY src/EventSourcing/EventSourcing.fsproj src/EventSourcing/
-COPY src/EventSourcing/paket.references src/EventSourcing/
+COPY src/Ouroboros/Ouroboros.fsproj src/Ouroboros/
+COPY src/Ouroboros/paket.references src/Ouroboros/
 
-# copy Sales
-COPY src/Sales/Sales.fsproj src/Sales/
-COPY src/Sales/paket.references src/Sales/
+# copy Tests
+COPY src/Tests/Tests.fsproj src/Tests/
+COPY src/Tests/paket.references src/Tests/
 
-# install piper dependencies
+# install dependencies
 COPY .paket .paket
 RUN mono .paket/paket.exe install
-RUN dotnet restore src/Sales/Sales.fsproj
+
+# copy solution
+COPY Ouroboros.sln .
+
+# restore dependencies
+RUN dotnet restore
 
 # copy everything else and build
 COPY . .
-RUN dotnet publish src/Sales/Sales.fsproj -c Release -o out
+RUN dotnet publish src/Tests/Tests.fsproj -c Release -o out
 
 # use runtime image for final image
 FROM microsoft/dotnet:2.1-runtime
 
-WORKDIR /simba
-COPY --from=builder /simba/src/Sales/out out
-COPY --from=builder /usr/bin/fwatchdog .
+WORKDIR /ouroboros
+COPY --from=builder /ouroboros/src/Tests/out .
+
+ENTRYPOINT ["dotnet", "Tests.dll"]

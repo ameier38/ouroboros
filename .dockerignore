@@ -1,0 +1,12 @@
+### VS Code ###
+.vscode
+
+### Publish ###
+**/bin
+**/obj
+**/out
+
+### Paket ###
+packages
+paket-files
+temp

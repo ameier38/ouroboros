@@ -1,0 +1,22 @@
+version: 2
+jobs:
+  test-piper:
+    docker:
+      - image: ameier38/docker-ci
+    steps:
+      - checkout
+      - run:
+          name: Install Docker Compose
+          command: |
+            curl -L https://github.com/docker/compose/releases/download/1.19.0/docker-compose-`uname -s`-`uname -m` > ~/docker-compose
+            chmod +x ~/docker-compose
+            sudo mv ~/docker-compose /usr/local/bin/docker-compose
+      - setup_remote_docker
+      - run:
+          name: Run Tests
+          command: |
+            cd ./src/Tests
+            docker-compose build test
+            docker-compose up -d eventstore
+            sleep 10s
+            docker-compose run --rm test
