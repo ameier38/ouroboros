@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  test-piper:
+  test-ouroboros:
     docker:
       - image: ameier38/docker-ci
     steps:
@@ -20,3 +20,30 @@ jobs:
             docker-compose up -d eventstore
             sleep 10s
             docker-compose run --rm test
+  build-ouroboros:
+    docker:
+      - image: microsoft/dotnet:2.1
+    steps:
+      - checkout
+      - run:
+          name: Build nuget package
+          command: |
+            cd ./src/Ouroboros
+            dotnet pack -c Release
+      - run:
+          name: Push nuget package
+          command: |
+            cd ./src/Ouroboros/bin/Release
+            dotnet nuget push Ouroboros.1.0.0.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json
+
+workflows:
+   version: 2
+   test:
+     jobs:
+       - test-ouroboros
+       - build-ouroboros:
+           filters:
+             branches:
+               only: develop
+           requires:
+             - test-ouroboros
