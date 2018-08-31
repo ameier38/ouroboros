@@ -48,17 +48,17 @@ let executeCommand command =
         let! handler' = handler |> AsyncResult.ofResult
         let handle = handler' benjiId DateTime.UtcNow
         do! handle command
-        printfn "sleeping..."
-        do! 2 * 1000 |> Async.Sleep |> AsyncResult.ofAsync
     }
 
 let testOuroboros =
     test "test Ouroboros" {
+        let onSuccess _ = printfn "Success!"
+        let onError e = printfn "Error!: %A" e
         commands        
         |> List.map executeCommand
         |> AsyncResult.sequenceM
         |> Async.RunSynchronously
-        |> ignore
+        |> Result.bimap onSuccess onError
 
         asyncResult {
             let! repo = getDogRepo () |> AsyncResult.ofResult

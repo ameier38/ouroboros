@@ -5,7 +5,11 @@ services:
     ports:
      - "2113:2113"
      - "1113:1113"
-  simba:
-    image: ameier38/moneylion-simba:latest
+  test:
     build:
       context: .
+    environment:
+      - EVENTSTORE_HOST=eventstore
+      - EVENTSTORE_PORT=1113
+      - EVENTSTORE_USER=admin
+      - EVENTSTORE_PASSWORD=changeit
