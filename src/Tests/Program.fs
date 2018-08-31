@@ -9,8 +9,6 @@ open Test.Dog.Implementation
 
 let benjiId = "2d94680171c64c86b136169551769831" |> Guid.Parse |> EntityId
 
-let asOfDate = DateTime(2018, 8, 31)
-
 let dog =
     { Name = "Benji"
       Breed = "Maltipoo" }
@@ -48,7 +46,7 @@ let handler =
 let executeCommand command =
     asyncResult {
         let! handler' = handler |> AsyncResult.ofResult
-        let handle = handler' benjiId asOfDate
+        let handle = handler' benjiId DateTime.UtcNow
         do! handle command
         printfn "sleeping..."
         do! 2 * 1000 |> Async.Sleep |> AsyncResult.ofAsync

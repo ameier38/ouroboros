@@ -128,19 +128,11 @@ module Aggregate =
         fun entityId asOfDate command ->
             asyncResult {
                 let! recordedEvents = repo.load entityId
-                printfn "getting events for %A as of %A" entityId asOfDate
                 let events =
                     recordedEvents
                     |> List.filter (fun re -> re.CreatedDate <= asOfDate)
                     |> List.sortBy (fun re -> (re.Meta.EffectiveDate, re.Meta.EffectiveOrder))
-                printfn "events:\n%A" events
-                printfn "computing state"
                 let state = List.fold aggregate.apply aggregate.zero events
-                printfn "state: %A" state
-                printfn "executing command: %A" command
                 let! newEvents = aggregate.execute state command
-                printfn "new events\n%A" newEvents
-                printfn "committing events"
                 do! repo.commit entityId Any newEvents
-                printfn "command successfully executed"
             }
