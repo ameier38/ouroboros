@@ -22,7 +22,7 @@ jobs:
             docker-compose run --rm test
   build-ouroboros:
     docker:
-      - image: microsoft/dotnet:2.1
+      - image: microsoft/dotnet:2.1-sdk
     steps:
       - checkout
       - run:
