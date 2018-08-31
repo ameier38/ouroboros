@@ -1,13 +1,15 @@
+[![CircleCI](https://circleci.com/gh/ameier38/fsharp-event-sourcing/tree/develop.svg?style=svg)](https://circleci.com/gh/ameier38/fsharp-event-sourcing/tree/develop)
+
 # fsharp-event-sourcing
 F# functions for building event sourced applications
 
 ## Usage
-1) To use Ouroboros in your own project, add to `paket.dependencies`:
+1) To use Ouroboros in your own project, add to your `paket.dependencies`:
     ```
     $ .paket/paket.exe add Ouroboros
     $ .paket/paket.exe install
     ```
-2) Open Ouroboros to namespace:
+2) Open Ouroboros module:
     ```fsharp
     open Ouroboros
     ```
