@@ -10,10 +10,6 @@ WORKDIR /ouroboros
 COPY paket.dependencies .
 COPY paket.lock .
 
-# copy Common
-COPY src/Common/Common.fsproj src/Common/
-COPY src/Common/paket.references src/Common/
-
 # copy Ouroboros
 COPY src/Ouroboros/Ouroboros.fsproj src/Ouroboros/
 COPY src/Ouroboros/paket.references src/Ouroboros/
