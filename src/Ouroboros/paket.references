@@ -1,2 +1,4 @@
 File: Result.fs
+File: SimpleType.fs
 EventStore.Client
+Vertigo.Json

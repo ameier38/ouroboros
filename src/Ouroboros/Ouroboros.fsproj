@@ -3,19 +3,22 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <RootNamespace>Ouroboros</RootNamespace>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\..\paket-files\ameier38\fsharp-result\Result.fs">
+    <Compile Include="..\..\paket-files\ameier38\fsharp-common\Result.fs">
       <Paket>True</Paket>
       <Link>paket-files/Result.fs</Link>
     </Compile>
+    <Compile Include="..\..\paket-files\ameier38\fsharp-common\SimpleType.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/SimpleType.fs</Link>
+    </Compile>
     <Compile Include="Ouroboros.SimpleTypes.fs" />
     <Compile Include="Ouroboros.PublicTypes.fs" />
+    <Compile Include="Ouroboros.Dto.fs" />
+    <Compile Include="Ouroboros.Api.fs" />
     <Compile Include="Ouroboros.EventStore.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Common\Common.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

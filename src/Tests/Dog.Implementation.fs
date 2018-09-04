@@ -1,8 +1,10 @@
 module internal Test.Dog.Implementation
 
-open Vertigo.Json
 open Ouroboros
+open Ouroboros.Api
+open Ouroboros.EventStore
 open Test.Dog
+open Test.Config
 
 type Apply =
     DogState
@@ -28,22 +30,6 @@ module DogEvent =
         |> DogEventDto.deserialize
         |> Result.map DogEventDto.toDomain
 
-module EventMeta =
-    let create effectiveDate effectiveOrder source =
-        { EffectiveDate = effectiveDate 
-          EffectiveOrder = effectiveOrder 
-          Source = source }
-    let serialize (eventMeta:EventMeta) =
-        try Json.serializeToBytes eventMeta |> Ok
-        with ex -> 
-            sprintf "could not serialize EventMeta %A\n%A" eventMeta ex 
-            |> DogError.io
-    let deserialize json =
-        try Json.deserializeFromBytes<EventMeta> json |> Ok
-        with ex ->
-            sprintf "could not deserialize EventMeta %A\n%A" json ex
-            |> DogError.io
-
 module Event =
     let getEffectiveOrder = function
         | DogEvent.Born _ -> 1
@@ -51,31 +37,23 @@ module Event =
         | DogEvent.Slept _ -> 3
         | DogEvent.Woke _ -> 4
         | DogEvent.Played _ -> 5
+    let createEventType eventType =
+        eventType
+        |> EventType.create
+        |> Result.mapError DogError.Validation
     let getEventType = function
-        | DogEvent.Born _ ->
-            EventType.create "Born"
-            |> Result.mapError DogError.Validation
-        | DogEvent.Ate _ -> 
-            EventType.create "Ate"
-            |> Result.mapError DogError.Validation
-        | DogEvent.Slept _ -> 
-            EventType.create "Slept"
-            |> Result.mapError DogError.Validation
-        | DogEvent.Woke _ -> 
-            EventType.create "Woke"
-            |> Result.mapError DogError.Validation
-        | DogEvent.Played _ -> 
-            EventType.create "Played"
-            |> Result.mapError DogError.Validation
+        | DogEvent.Born _ -> createEventType "Born"
+        | DogEvent.Ate _ -> createEventType "Ate"
+        | DogEvent.Slept _ -> createEventType "Slept"
+        | DogEvent.Woke _ -> createEventType "Woke"
+        | DogEvent.Played _ -> createEventType "Played"
     let fromDomain source effectiveDate =
         fun dogEvent ->
             result {
                 let effectiveOrder = getEffectiveOrder dogEvent
-                let eventMeta =
-                    EventMeta.create
-                        effectiveDate
-                        effectiveOrder
-                        source
+                let! eventMeta = 
+                    EventMeta.create effectiveDate effectiveOrder source
+                    |> Result.mapError DogError.Validation
                 let! eventType = getEventType dogEvent
                 return 
                     { Event.Type = eventType
@@ -84,7 +62,9 @@ module Event =
             }
     let serialize (event:Event<DogEvent>) =
         result {
-            let! eventMeta = EventMeta.serialize event.Meta
+            let! eventMeta = 
+                EventMeta.serialize event.Meta
+                |> Result.mapError DogError.IO
             let! eventData = DogEvent.serialize event.Data
             return
                 { Type = event.Type
@@ -93,7 +73,9 @@ module Event =
         }
     let deserialize (event:SerializedRecordedEvent) =
         result {
-            let! eventMeta = EventMeta.deserialize event.Meta
+            let! eventMeta = 
+                EventMeta.deserialize event.Meta
+                |> Result.mapError DogError.IO
             let! eventData = DogEvent.deserialize event.Data
             return
                 { Id = event.Id
@@ -183,3 +165,19 @@ let aggregate =
     { zero = NoDog
       apply = apply
       execute = execute' }
+
+let repoResult =
+    result {
+        let! config = EventStoreConfig.load () |> Result.mapError DogError.IO
+        let store = eventStore config.Uri
+        let! entityType = EntityType.create "dog" |> Result.mapError DogError.Validation
+        let mapError (EventStoreError e) = DogError.IO e
+        let repo = Repository.create store mapError serializer entityType
+        return repo
+    }
+
+let handlerResult =
+    result {
+        let! repo = repoResult
+        return Handler.create repo aggregate
+    }

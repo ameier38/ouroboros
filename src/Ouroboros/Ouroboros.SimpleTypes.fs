@@ -1,7 +1,7 @@
 namespace Ouroboros
 
 open System
-open Common
+open SimpleType
 
 /// Type of entity (read: aggregate) (e.g., loan, series, membership).
 type EntityType = private EntityType of String50
@@ -49,11 +49,38 @@ type ExpectedVersion =
     | StreamExists
     | ExpectedVersion of PositiveLong
 
+/// Date at which the event was created
+type CreatedDate = CreatedDate of DateTime
+module CreatedDate =
+    let value (CreatedDate date) = date
+    let create date = CreatedDate date
+
 /// Unique identifier for an event.
 type EventId = EventId of Guid
+module EventId =
+    let value (EventId guid) = guid
+    let create guid = EventId guid
 
 /// Friendly name for the type of event (e.g., Loan Originated)
 type EventType = private EventType of String50
 module EventType =
     let value (EventType eventType) = String50.value eventType
     let create eventType = String50.create eventType |> Result.map EventType
+
+/// Date at which event is effective in the domain
+type EffectiveDate = EffectiveDate of DateTime
+module EffectiveDate =
+    let value (EffectiveDate date) = date
+    let create date = EffectiveDate date
+
+/// If two events occur at the exact same time, the order in which to apply them
+type EffectiveOrder = private EffectiveOrder of PositiveInt
+module EffectiveOrder =
+    let value (EffectiveOrder order) = PositiveInt.value order
+    let create order = PositiveInt.create order |> Result.map EffectiveOrder
+
+/// Source which caused the creation of the event
+type Source = Source of String50
+module Source =
+    let value (Source source) = String50.value source
+    let create source = String50.create source |> Result.map Source

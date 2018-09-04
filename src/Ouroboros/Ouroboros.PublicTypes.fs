@@ -7,15 +7,18 @@ open System
 /// `EffectiveOrder`: If two events are effective at the same time, the order to apply.
 /// `Source`: The source which generated the event.
 type EventMeta =
-    { EffectiveDate: DateTime
-      EffectiveOrder: int
-      Source: string }
+    { EffectiveDate: EffectiveDate
+      EffectiveOrder: EffectiveOrder
+      Source: Source }
 
+/// Wrapper for domain event to persist
+/// `Type`: the type of event
+/// `Data`: the domain event
+/// `Meta`: meta data about the event
 type Event<'DomainEvent> =
     { Type: EventType
       Data: 'DomainEvent
       Meta: EventMeta }
-
 
 type SerializedEvent =
     { Type: EventType
@@ -24,14 +27,14 @@ type SerializedEvent =
 
 type SerializedRecordedEvent =
     { Id: EventId
-      CreatedDate: DateTime
+      CreatedDate: CreatedDate
       Type: EventType
       Data: byte array
       Meta: byte array }
 
 type RecordedEvent<'DomainEvent> =
     { Id: EventId
-      CreatedDate: DateTime
+      CreatedDate: CreatedDate
       Type: EventType
       Data: 'DomainEvent
       Meta: EventMeta }
@@ -79,60 +82,29 @@ type Commit<'DomainEvent,'DomainError> =
      -> Event<'DomainEvent> list
      -> AsyncResult<unit, 'DomainError>
 
-/// Provides access to stored streams
+type Apply<'DomainState, 'DomainEvent> =
+    'DomainState
+     -> RecordedEvent<'DomainEvent>
+     -> 'DomainState
+
+type Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> =
+    'DomainState
+     -> 'DomainCommand
+     -> AsyncResult<Event<'DomainEvent> list, 'DomainError>
+
+type Handle<'DomainCommand, 'DomainEvent, 'DomainError> =
+    EntityId
+     -> 'DomainCommand
+     -> AsyncResult<Event<'DomainEvent> list, 'DomainError>
+
 type Repository<'DomainEvent,'DomainError> =
     { load: Load<'DomainEvent,'DomainError>
       commit: Commit<'DomainEvent,'DomainError> }
-module Repository =
-    let create<'DomainEvent,'DomainError,'StoreError> 
-        (store:Store<'StoreError>) 
-        (mapError:'StoreError -> 'DomainError)
-        (serializer:Serializer<'DomainEvent,'DomainError>) 
-        (entityType:EntityType) =
-        let createStreamId = StreamId.create entityType
-        let load entityId = asyncResult {
-            let streamStart  = StreamStart.zero
-            let! events = 
-                createStreamId entityId
-                |> store.readEntireStream streamStart
-                |> AsyncResult.mapError mapError
-            return! 
-                events 
-                |> List.map serializer.deserialize 
-                |> Result.sequence
-                |> AsyncResult.ofResult
-        }
-        let commit entityId expectedVersion events = 
-            asyncResult {
-                let! serializedEvents =
-                    events
-                    |> List.map serializer.serialize 
-                    |> Result.sequence
-                    |> AsyncResult.ofResult
-                return!
-                    createStreamId entityId
-                    |> store.writeStream expectedVersion serializedEvents
-                    |> AsyncResult.mapError mapError
-            }
-        { load = load
-          commit = commit }
 
 type Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError> =
     { zero: 'DomainState 
-      apply: 'DomainState -> RecordedEvent<'DomainEvent> -> 'DomainState
-      execute: 'DomainState -> 'DomainCommand -> AsyncResult<Event<'DomainEvent> list,'DomainError> }
-module Aggregate =
-    let createHandler<'DomainState,'DomainCommand,'DomainEvent,'DomainError> 
-        (repo:Repository<'DomainEvent,'DomainError>) 
-        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError>) =
-        fun entityId asOfDate command ->
-            asyncResult {
-                let! recordedEvents = repo.load entityId
-                let events =
-                    recordedEvents
-                    |> List.filter (fun re -> re.CreatedDate <= asOfDate)
-                    |> List.sortBy (fun re -> (re.Meta.EffectiveDate, re.Meta.EffectiveOrder))
-                let state = List.fold aggregate.apply aggregate.zero events
-                let! newEvents = aggregate.execute state command
-                do! repo.commit entityId Any newEvents
-            }
+      apply: Apply<'DomainState, 'DomainEvent>
+      execute: Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> }
+
+type Handler<'DomainCommand, 'DomainEvent, 'DomainError> =
+    { handle: Handle<'DomainCommand, 'DomainEvent, 'DomainError> }
