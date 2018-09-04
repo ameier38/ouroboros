@@ -612,7 +612,7 @@ NUGET
     Vertigo.Json (0.1.65.3)
       FSharp.Core (>= 4.0.0.1)
 GITHUB
-  remote: ameier38/fsharp-result
-    Result.fs (22bbfe8ffa1518ee453e92536b6096985e0c1d76)
-  remote: ameier38/fsharp-dotenv
-    DotEnv.fs (d479cbb914b44da6e4abcb91b001076164735593)
+  remote: ameier38/fsharp-common
+    DotEnv.fs (f837f5c81a21d151dccadff9db35c69792e81253)
+    Result.fs (f837f5c81a21d151dccadff9db35c69792e81253)
+    SimpleType.fs (f837f5c81a21d151dccadff9db35c69792e81253)

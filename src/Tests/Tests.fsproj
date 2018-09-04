@@ -5,13 +5,13 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\..\paket-files\ameier38\fsharp-dotenv\DotEnv.fs">
-      <Paket>True</Paket>
-      <Link>paket-files/DotEnv.fs</Link>
-    </Compile>
-    <Compile Include="..\..\paket-files\ameier38\fsharp-result\Result.fs">
+    <Compile Include="..\..\paket-files\ameier38\fsharp-common\Result.fs">
       <Paket>True</Paket>
       <Link>paket-files/Result.fs</Link>
+    </Compile>
+    <Compile Include="..\..\paket-files\ameier38\fsharp-common\DotEnv.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/DotEnv.fs</Link>
     </Compile>
     <Compile Include="Config.fs" />
     <Compile Include="Dog.PublicTypes.fs" />

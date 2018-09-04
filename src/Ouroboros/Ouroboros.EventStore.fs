@@ -1,7 +1,7 @@
 module Ouroboros.EventStore
 
 open System
-open Common
+open SimpleType
 open EventStore.ClientAPI
 
 module SerializedRecordedEvent =
@@ -11,7 +11,7 @@ module SerializedRecordedEvent =
             let! eventType = EventType.create resolvedEvent.Event.EventType
             return
                 { SerializedRecordedEvent.Id = eventId
-                  CreatedDate = resolvedEvent.Event.Created
+                  CreatedDate = resolvedEvent.Event.Created |> CreatedDate
                   Type = eventType 
                   Data = resolvedEvent.Event.Data
                   Meta = resolvedEvent.Event.Metadata }

@@ -2,8 +2,6 @@
 open System.IO
 open Expecto
 open Ouroboros
-open Ouroboros.EventStore
-open Test.Config
 open Test.Dog
 open Test.Dog.Implementation
 
@@ -25,29 +23,11 @@ let expectedEvents =
       DogEvent.Played
       DogEvent.Slept ]
 
-let getDogRepo () =
-    result {
-        printfn "getting dog repo"
-        let! config = EventStoreConfig.load () |> Result.mapError DogError.IO
-        let store = eventStore config.Uri
-        let! entityType = EntityType.create "dog" |> Result.mapError DogError.Validation
-        let mapError (EventStoreError e) = DogError.IO e
-        let repo = Repository.create store mapError serializer entityType
-        return repo
-    }
-
-let handler =
-    printfn "getting handler"
-    result {
-        let! repo = getDogRepo () 
-        return Aggregate.createHandler repo aggregate
-    }
-
 let executeCommand command =
     asyncResult {
-        let! handler' = handler |> AsyncResult.ofResult
-        let handle = handler' benjiId DateTime.UtcNow
-        do! handle command
+        let! handler = handlerResult |> AsyncResult.ofResult
+        let handle = handler.handle benjiId
+        return! handle command
     }
 
 let testOuroboros =
@@ -61,7 +41,7 @@ let testOuroboros =
         |> Result.bimap onSuccess onError
 
         asyncResult {
-            let! repo = getDogRepo () |> AsyncResult.ofResult
+            let! repo = repoResult |> AsyncResult.ofResult
             let! recordedEvents = repo.load benjiId
             let events = recordedEvents |> List.map (fun re -> re.Data)
             return Expect.equal events expectedEvents "The events should equal"

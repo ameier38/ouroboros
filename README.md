@@ -4,17 +4,26 @@
 F# functions for building event sourced applications
 
 ## Usage
-1) To use Ouroboros in your own project, add to your `paket.dependencies`:
+1) To use Ouroboros in your own project, first add it to your `paket.dependencies` file:
     ```
-    $ .paket/paket.exe add Ouroboros
+    source https://www.nuget.org/api/v2
+
+    nuget Ouroboros
+    ```
+    > For an example `paket.dependencies` file see the [file in this repository](./paket.dependencies)
+
+2) Next, add a reference to the dependency in your `paket.references` file:
+    ```
+    Ouroboros
+    ```
+    > For an example `paket.references` file see the [file in the Tests directory](./src/Tests/paket.references)
+
+3) Then install the dependencies
+    ```
     $ .paket/paket.exe install
     ```
-2) Open Ouroboros module:
-    ```fsharp
-    open Ouroboros
-    ```
-    See [Dog.Implementation.fs](./src/Tests/Dog.Implementation.fs) for an example on how to
-    incorporate into your project.
+
+4) See [Dog.Implementation.fs](./src/Tests/Dog.Implementation.fs) for an example on how to incorporate into your project.
 
 ## Resources
 Below are a list of resources to get started with event sourcing.
