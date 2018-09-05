@@ -1,4 +1,4 @@
-[![CircleCI](https://circleci.com/gh/ameier38/fsharp-event-sourcing/tree/develop.svg?style=svg)](https://circleci.com/gh/ameier38/fsharp-event-sourcing/tree/develop)
+[![CircleCI](https://circleci.com/gh/ameier38/ouroboros/tree/develop.svg?style=svg)](https://circleci.com/gh/ameier38/ouroboros/tree/develop)
 
 # fsharp-event-sourcing
 F# functions for building event sourced applications
