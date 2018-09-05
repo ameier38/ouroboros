@@ -73,7 +73,7 @@ let testOuroborosError =
             |> AsyncResult.sequenceM
             |> Async.RunSynchronously
             |> Result.bimap onSuccess onError
-        Expect.equal result "Error!: Validation \"invalid command Play 8/30/2018 1:00:00 PM on state Hungry\"" "should throw error"
+        Expect.isMatch result "Error!: Validation \"invalid command Play 0?8/30/2018 1:00:00 PM on state Hungry\"" "should throw error"
     }
 
 let testOuroboros =
