@@ -71,7 +71,6 @@ module EventType =
 type EffectiveDate = EffectiveDate of DateTime
 module EffectiveDate =
     let value (EffectiveDate date) = date
-    let create date = EffectiveDate date
 
 /// If two events occur at the exact same time, the order in which to apply them
 type EffectiveOrder = private EffectiveOrder of PositiveInt

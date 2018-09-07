@@ -35,15 +35,15 @@ NUGET
       System.Runtime (>= 4.1.0-rc2-24027) - restriction: >= netstandard1.5
       System.Runtime.Extensions (>= 4.1.0-rc2-24027) - restriction: >= netstandard1.5
     EventStore.Client (4.1.1)
-    Expecto (8.2.2)
+    Expecto (8.3)
       Argu (>= 5.1) - restriction: || (>= net461) (>= netstandard2.0)
       Mono.Cecil (>= 0.10) - restriction: || (>= net461) (>= netstandard2.0)
       System.Diagnostics.FileVersionInfo (>= 4.3) - restriction: && (< net461) (>= netstandard2.0)
-    Expecto.BenchmarkDotNet (8.2.2)
+    Expecto.BenchmarkDotNet (8.3)
       BenchmarkDotNet (>= 0.10.14) - restriction: || (>= net461) (>= netcoreapp2.0)
       FSharp.Core (>= 4.3.4) - restriction: || (>= net461) (>= netcoreapp2.0)
-    Expecto.FsCheck (8.2.2)
-      Expecto (>= 8.2.2) - restriction: || (>= net461) (>= netstandard2.0)
+    Expecto.FsCheck (8.3)
+      Expecto (>= 8.3) - restriction: || (>= net461) (>= netstandard2.0)
       FsCheck (>= 2.10.4) - restriction: || (>= net461) (>= netstandard2.0)
     FsCheck (2.11) - restriction: || (>= net461) (>= netstandard2.0)
       FSharp.Core (>= 4.0.0.1) - restriction: || (>= net452) (&& (< netstandard1.6) (>= portable-net45+win8)) (&& (< portable-net45+win8) (>= portable-net45+win8+wp8)) (&& (< portable-net45+win8+wp8) (>= portable-net45+win8+wp8+wpa81))
@@ -613,6 +613,6 @@ NUGET
       FSharp.Core (>= 4.0.0.1)
 GITHUB
   remote: ameier38/fsharp-common
-    DotEnv.fs (f837f5c81a21d151dccadff9db35c69792e81253)
-    Result.fs (f837f5c81a21d151dccadff9db35c69792e81253)
-    SimpleType.fs (f837f5c81a21d151dccadff9db35c69792e81253)
+    DotEnv.fs (c7c28263b8f3c695ab763412e7e4bd1e453b897c)
+    Result.fs (c7c28263b8f3c695ab763412e7e4bd1e453b897c)
+    SimpleType.fs (c7c28263b8f3c695ab763412e7e4bd1e453b897c)

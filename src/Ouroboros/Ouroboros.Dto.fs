@@ -14,7 +14,7 @@ module EventMetaDto =
           Source = meta.Source |> Source.value }
     let toDomain (dto:EventMetaDto) =
         result {
-            let effectiveDate = dto.EffectiveDate |> EffectiveDate.create
+            let effectiveDate = dto.EffectiveDate |> EffectiveDate
             let! effectiveOrder = dto.EffectiveOrder |> EffectiveOrder.create
             let! source = dto.Source |> Source.create
             return

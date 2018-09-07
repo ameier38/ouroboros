@@ -65,7 +65,10 @@ module Handler =
                 let events =
                     recordedEvents
                     |> List.sortBy (fun re -> (re.Meta.EffectiveDate, re.Meta.EffectiveOrder))
-                let state = List.fold aggregate.apply aggregate.zero events
+                    |> List.map Ok
+                let apply = Result.bind2 aggregate.apply
+                let zero = aggregate.zero |> Ok
+                let! state = List.fold apply zero events |> AsyncResult.ofResult
                 let! newEvents = aggregate.execute state command
                 do! repo.commit entityId Any newEvents
                 return newEvents
