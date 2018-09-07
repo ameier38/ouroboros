@@ -1,24 +1,27 @@
 namespace Test.Dog
 
 open System
+open Ouroboros
 
 type Dog =
-    { Name: string
-      Breed: string }
+    { Name: Name
+      Breed: Breed }
 
 type DogEvent =
     | Born of Dog
-    | Ate
+    | Renamed of Name
+    | Ate of Name
     | Slept
     | Woke
     | Played
 
 type DogCommand =
-    | Create of DateTime * Dog
-    | Eat of DateTime
-    | Sleep of DateTime
-    | Wake of DateTime
-    | Play of DateTime
+    | Create of EffectiveDate * Dog
+    | Rename of EffectiveDate * Name
+    | CallToEat of EffectiveDate * Name
+    | Sleep of EffectiveDate
+    | Wake of EffectiveDate
+    | Play of EffectiveDate
 
 type DogError =
     | IO of string
@@ -26,7 +29,7 @@ type DogError =
 
 type DogState =
     | NoDog
-    | Bored
-    | Hungry
-    | Tired
-    | Asleep
+    | Bored of Dog
+    | Hungry of Dog
+    | Tired of Dog
+    | Asleep of Dog

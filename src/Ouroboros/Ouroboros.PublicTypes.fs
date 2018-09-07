@@ -82,10 +82,10 @@ type Commit<'DomainEvent,'DomainError> =
      -> Event<'DomainEvent> list
      -> AsyncResult<unit, 'DomainError>
 
-type Apply<'DomainState, 'DomainEvent> =
+type Apply<'DomainState, 'DomainEvent, 'DomainError> =
     'DomainState
      -> RecordedEvent<'DomainEvent>
-     -> 'DomainState
+     -> Result<'DomainState, 'DomainError>
 
 type Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> =
     'DomainState
@@ -103,7 +103,7 @@ type Repository<'DomainEvent,'DomainError> =
 
 type Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError> =
     { zero: 'DomainState 
-      apply: Apply<'DomainState, 'DomainEvent>
+      apply: Apply<'DomainState, 'DomainEvent, 'DomainError>
       execute: Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> }
 
 type Handler<'DomainCommand, 'DomainEvent, 'DomainError> =
