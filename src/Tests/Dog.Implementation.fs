@@ -5,7 +5,6 @@ open Ouroboros.Api
 open Ouroboros.EventStore
 open Test.Dog
 open Test.Config
-open System.Configuration
 
 type Apply =
     DogState
@@ -93,10 +92,11 @@ module Event =
     let fromDomain source effectiveDate =
         fun dogEvent ->
             result {
-                let effectiveOrder = getEffectiveOrder dogEvent
-                let! eventMeta = 
-                    EventMeta.create effectiveDate effectiveOrder source
+                let! effectiveOrder = 
+                    getEffectiveOrder dogEvent
+                    |> EffectiveOrder.create
                     |> Result.mapError DogError.Validation
+                let eventMeta = EventMeta.create effectiveDate effectiveOrder source
                 let! eventType = getEventType dogEvent
                 return 
                     { Event.Type = eventType
@@ -130,60 +130,62 @@ module Event =
 
 module Execute =
     let success effectiveDate event = 
-        event
-        |> Event.fromDomain "test" effectiveDate
-        |> AsyncResult.ofResult
-        |> AsyncResult.map List.singleton
+        asyncResult {
+            let! source = 
+                "test" 
+                |> Source.create 
+                |> Result.mapError DogError.Validation
+                |> AsyncResult.ofResult
+            return!
+                event
+                |> Event.fromDomain source effectiveDate
+                |> Result.map List.singleton
+                |> AsyncResult.ofResult
+        }
     let fail message =
         message
         |> DogError.Validation
         |> AsyncResult.ofError
-    let create =
-        fun (EffectiveDate effectiveDate) dog -> function
-            | NoDog ->
-                DogEvent.Born dog |> success effectiveDate
-            | _ ->
-                "cannot create dog; dog does not exist" |> fail
-    let changeName =
-        fun (EffectiveDate effectiveDate) newName -> function
-            | NoDog ->
-                "cannot change name; dog does not exist" |> fail
-            | _ ->
-                DogEvent.Renamed newName |> success effectiveDate
-    let callToEat =
-        fun (EffectiveDate effectiveDate) calledName -> function
-            | NoDog ->
-                "dog cannot eat; dog does not exist" |> fail
-            | Hungry { Name = currentName } ->
-                if currentName = calledName
-                then DogEvent.Ate calledName |> success effectiveDate
-                else sprintf "dog won't come to eat; current name: %A, called name %A" currentName calledName |> fail
-            | _ ->
-                "dog cannot eat; dog is not hungry" |> fail
-    let sleep =
-        fun (EffectiveDate effectiveDate) -> function
-            | NoDog ->
-                "dog cannot sleep; dog does not exist" |> fail
-            | Tired _ ->
-                DogEvent.Slept |> success effectiveDate
-            | _ ->
-                "dog cannot sleep; dog is not tired" |> fail
-    let wake =
-        fun (EffectiveDate effectiveDate) -> function
-            | NoDog ->
-                "dog cannot wake up; dog does not exist" |> fail
-            | Asleep _ ->
-                DogEvent.Woke |> success effectiveDate
-            | _ ->
-                "dog cannot wake up; dog is not asleep" |> fail
-    let play =
-        fun (EffectiveDate effectiveDate) -> function
-            | NoDog ->
-                "dog cannot play; dog does not exist" |> fail
-            | Bored _ ->
-                DogEvent.Played |> success effectiveDate
-            | _ ->
-                "dog cannot play; dog is not bored" |> fail
+    let create effectiveDate dog = function
+        | NoDog ->
+            DogEvent.Born dog |> success effectiveDate
+        | _ ->
+            "cannot create dog; dog already exists" |> fail
+    let changeName effectiveDate newName = function
+        | NoDog ->
+            "cannot change name; dog does not exist" |> fail
+        | _ ->
+            DogEvent.Renamed newName |> success effectiveDate
+    let callToEat effectiveDate calledName = function
+        | NoDog ->
+            "dog cannot eat; dog does not exist" |> fail
+        | Hungry { Name = currentName } ->
+            if currentName = calledName
+            then DogEvent.Ate calledName |> success effectiveDate
+            else sprintf "dog won't come to eat; current name: %A, called name %A" currentName calledName |> fail
+        | _ ->
+            "dog cannot eat; dog is not hungry" |> fail
+    let sleep effectiveDate = function
+        | NoDog ->
+            "dog cannot sleep; dog does not exist" |> fail
+        | Tired _ ->
+            DogEvent.Slept |> success effectiveDate
+        | _ ->
+            "dog cannot sleep; dog is not tired" |> fail
+    let wake effectiveDate = function
+        | NoDog ->
+            "dog cannot wake up; dog does not exist" |> fail
+        | Asleep _ ->
+            DogEvent.Woke |> success effectiveDate
+        | _ ->
+            "dog cannot wake up; dog is not asleep" |> fail
+    let play effectiveDate = function
+        | NoDog ->
+            "dog cannot play; dog does not exist" |> fail
+        | Bored _ ->
+            DogEvent.Played |> success effectiveDate
+        | _ ->
+            "dog cannot play; dog is not bored" |> fail
 
 let execute : Execute =
     fun state -> function

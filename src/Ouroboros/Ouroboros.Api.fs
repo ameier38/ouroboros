@@ -2,15 +2,9 @@ module Ouroboros.Api
 
 module EventMeta =
     let create effectiveDate effectiveOrder source =
-        result {
-            let effectiveDate' = EffectiveDate effectiveDate
-            let! effectiveOrder' = EffectiveOrder.create effectiveOrder
-            let! source' = Source.create source
-            return
-                { EventMeta.EffectiveDate = effectiveDate'
-                  EffectiveOrder = effectiveOrder'
-                  Source = source' }
-        }
+        { EventMeta.EffectiveDate = effectiveDate
+          EffectiveOrder = effectiveOrder
+          Source = source }
     let serialize (meta:EventMeta) =
         meta
         |> EventMetaDto.fromDomain
