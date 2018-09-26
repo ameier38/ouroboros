@@ -14,18 +14,11 @@ type Apply =
 type Execute =
     DogState
      -> DogCommand
-     -> AsyncResult<Event<DogEvent> list, DogError>
+     -> Result<Event<DogEvent> list, DogError>
 
 module DogError =
     let io s = DogError.IO s |> Error
     let validation s = DogError.Validation s |> Error
-
-let (|DogState|_|) = function
-    | NoDog -> None
-    | Bored dog -> Some dog
-    | Hungry dog -> Some dog
-    | Tired dog -> Some dog
-    | Asleep dog -> Some dog
 
 module DogEvent =
     let serialize event =
@@ -40,62 +33,52 @@ module DogEvent =
 module Apply =
     let success state = state |> Ok
     let fail message = message |> DogError.validation
-    let born dog = function
-        | NoDog -> Hungry dog |> success
+    let born _ = function
+        | NoDog -> Hungry |> success
         | _ -> "dog cannot be born; dog already exists" |> fail
-    let renamed name = function
-        | NoDog -> "dog cannot be renamed; dog does not exist" |> fail
-        | Bored dog -> { dog with Name = name } |> Bored |> success
-        | Hungry dog -> { dog with Name = name } |> Hungry |> success
-        | Tired dog -> { dog with Name = name } |> Tired |> success
-        | Asleep dog -> { dog with Name = name } |> Asleep |> success
-    let ate calledName = function
+    let ate = function
         | NoDog -> "dog cannot eat; dog does not exist" |> fail
-        | DogState dog ->
-            if dog.Name = calledName
-            then Bored dog |> success
-            else "dog cannot eat; incorrect name" |> fail
+        | Hungry -> Bored |> success
         | state -> sprintf "dog cannot eat in state:\n%A" state |> fail
     let slept = function
         | NoDog -> "dog cannot sleep; dog does not exist" |> fail
-        | Tired dog -> Hungry dog |> success
+        | Tired -> Hungry |> success
         | state -> sprintf "dog cannot sleep in state: \n%A" state |> fail
     let woke = function
         | NoDog -> "dog cannot wake; dog does not exist" |> fail
-        | Asleep dog -> Bored dog |> success
+        | Asleep -> Bored |> success
         | state -> sprintf "dog cannot wake in state: \n%A" state |> fail
     let played = function
         | NoDog -> "dog cannot play; dog does not exist" |> fail
-        | Bored dog -> Tired dog |> success
+        | Bored -> Tired |> success
         | state -> sprintf "dog cannot play in state: \n%A" state |> fail
 
 
 module Event =
+    let createEffectiveOrder order =
+        order
+        |> EffectiveOrder.create
+        |> Result.mapError DogError.Validation
     let getEffectiveOrder = function
-        | DogEvent.Born _ -> 1
-        | DogEvent.Renamed _ -> 2
-        | DogEvent.Ate _ -> 3
-        | DogEvent.Slept -> 4
-        | DogEvent.Woke -> 5
-        | DogEvent.Played -> 6
+        | DogEvent.Born _ -> createEffectiveOrder 1
+        | DogEvent.Ate -> createEffectiveOrder 2
+        | DogEvent.Slept -> createEffectiveOrder 3
+        | DogEvent.Woke -> createEffectiveOrder 4
+        | DogEvent.Played -> createEffectiveOrder 5
     let createEventType eventType =
         eventType
         |> EventType.create
         |> Result.mapError DogError.Validation
     let getEventType = function
         | DogEvent.Born _ -> createEventType "Born"
-        | DogEvent.Renamed _ -> createEventType "Renamed"
-        | DogEvent.Ate _ -> createEventType "Ate"
-        | DogEvent.Slept _ -> createEventType "Slept"
-        | DogEvent.Woke _ -> createEventType "Woke"
-        | DogEvent.Played _ -> createEventType "Played"
+        | DogEvent.Ate -> createEventType "Ate"
+        | DogEvent.Slept -> createEventType "Slept"
+        | DogEvent.Woke -> createEventType "Woke"
+        | DogEvent.Played -> createEventType "Played"
     let fromDomain source effectiveDate =
         fun dogEvent ->
             result {
-                let! effectiveOrder = 
-                    getEffectiveOrder dogEvent
-                    |> EffectiveOrder.create
-                    |> Result.mapError DogError.Validation
+                let! effectiveOrder = getEffectiveOrder dogEvent 
                 let eventMeta = EventMeta.create effectiveDate effectiveOrder source
                 let! eventType = getEventType dogEvent
                 return 
@@ -222,10 +205,4 @@ let repoResult =
         let mapError (EventStoreError e) = DogError.IO e
         let repo = Repository.create store mapError serializer entityType
         return repo
-    }
-
-let handlerResult =
-    result {
-        let! repo = repoResult
-        return Handler.create repo aggregate
     }

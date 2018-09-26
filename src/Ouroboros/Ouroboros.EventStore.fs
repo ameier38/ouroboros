@@ -21,7 +21,8 @@ module SerializedEvent =
     let toEventData (event:SerializedEvent) =
         let guid = Guid.NewGuid()
         let eventType = EventType.value event.Type
-        EventData(guid, eventType, true, event.Data, event.Meta)
+        let meta = Array.empty<byte>
+        EventData(guid, eventType, true, event.Data, meta)
 
 module ExpectedVersion =
     let value = function

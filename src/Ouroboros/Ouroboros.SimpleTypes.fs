@@ -61,11 +61,13 @@ module EventId =
     let value (EventId guid) = guid
     let create guid = EventId guid
 
-/// Friendly name for the type of event (e.g., Loan Originated)
-type EventType = private EventType of String50
+/// Friendly name for the type of event (e.g., Dog Played)
+type EventType = private EventType of string
 module EventType =
-    let value (EventType eventType) = String50.value eventType
-    let create eventType = String50.create eventType |> Result.map EventType
+    let value (EventType eventType) = eventType
+    let create = function 
+        | DeletedEventType -> sprintf "%s is a reserved EventType" DeletedEventType |> Error
+        | eventType -> ConstrainedType.createString EventType 50 eventType
 
 /// Date at which event is effective in the domain
 type EffectiveDate = EffectiveDate of DateTime
@@ -79,7 +81,13 @@ module EffectiveOrder =
     let create order = PositiveInt.create order |> Result.map EffectiveOrder
 
 /// Source which caused the creation of the event
-type Source = Source of String50
+type Source = private Source of String50
 module Source =
     let value (Source source) = String50.value source
     let create source = String50.create source |> Result.map Source
+
+// Reason for why the event is deleted
+type DeletionReason = private DeletionReason of String50
+module DeletionReason =
+    let value (DeletionReason reason) = reason |> String50.value
+    let create reason = reason |> String50.create |> Result.map DeletionReason
