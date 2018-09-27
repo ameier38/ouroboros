@@ -1,5 +1,7 @@
 namespace Ouroboros
 
+open Ouroboros.Constants
+
 open System
 open SimpleType
 

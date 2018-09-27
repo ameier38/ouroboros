@@ -1,6 +1,7 @@
 ﻿open System
 open Expecto
 open Ouroboros
+open Ouroboros.Api
 open Test.Dog
 open Test.Dog.Implementation
 
@@ -29,61 +30,51 @@ let minnie =
 let benjiCommands =
     result {
         let! benji' = benji
-        return
-            [ DogCommand.Create (DateTime(2018, 8, 30, 12, 0, 0) |> EffectiveDate, benji')
-              DogCommand.CallToEat (DateTime(2018, 8, 30, 13, 0, 0) |> EffectiveDate, benji'.Name)
-              DogCommand.Play (DateTime(2018, 8, 30, 14, 0, 0) |> EffectiveDate)
-              DogCommand.Sleep (DateTime(2018, 8, 30, 15, 0, 0) |> EffectiveDate) ]
-    }
+        return!
+            [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create benji')
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) ]
+            |> List.map (fun (s, d, c) -> Command.createDomainCommand s d c)
+            |> Result.sequence
+    } |> Result.mapError DogError.Validation
 
 let minnieCommands =
     result {
         let! minnie' = minnie
-        let! newName = Name.create "Raggles"
-        return
-            [ DogCommand.Create (DateTime(2018, 8, 30, 12, 0, 0) |> EffectiveDate, minnie')
-              DogCommand.CallToEat (DateTime(2018, 8, 30, 13, 0, 0) |> EffectiveDate, minnie'.Name)
-              // rename Benji to Raggles effective on birthday
-              DogCommand.Rename (DateTime(2018, 8, 30, 12, 0, 0) |> EffectiveDate, newName)
-              // the previous Eat command should now fail when trying to reconstitute state
-              DogCommand.Play (DateTime(2018, 8, 30, 13, 0, 0) |> EffectiveDate) 
-              DogCommand.Sleep (DateTime(2018, 8, 30, 13, 0, 0) |> EffectiveDate) ]
-    }
+        return!
+            [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create minnie')
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) ]
+            |> List.map (fun (s, d, c) -> Command.createDomainCommand s d c)
+            |> Result.sequence
+    } |> Result.mapError DogError.Validation
 
 let expectedBenjiEvents = 
     result {
         let! benji' = benji
         return
             [ DogEvent.Born benji'
-              DogEvent.Ate benji'.Name
-              DogEvent.Played
-              DogEvent.Slept ]
+              DogEvent.Ate ]
     } |> Result.mapError DogError.Validation
 
-let expectedMinnieEvents =
+let expectedMinnieEvents = 
     result {
         let! minnie' = minnie
-        let! newName = Name.create "Raggles"
         return
             [ DogEvent.Born minnie'
-              DogEvent.Ate minnie'.Name
-              DogEvent.Renamed newName ]
+              DogEvent.Ate ]
     } |> Result.mapError DogError.Validation
 
 let executeCommand dogId command =
     asyncResult {
         let! handler = handlerResult |> AsyncResult.ofResult
         let handle = handler.handle dogId
-        return! handle command
+        return! handle [ command ]
     }
 
 let testOuroborosBenji =
-    test "test Ouroboros Benji" {
+    ftest "test Ouroboros Benji" {
         let executeCommand' = executeCommand benjiId
         result {
-            let! benjiCommands' = 
-                benjiCommands
-                |> Result.mapError DogError.Validation
+            let! benjiCommands' = benjiCommands
             return! 
                 benjiCommands'
                 |> List.map executeCommand'
@@ -98,7 +89,12 @@ let testOuroborosBenji =
             let! repo = repoResult |> AsyncResult.ofResult
             let! recordedEvents = repo.load benjiId
             let! expectedBenjiEvents' = expectedBenjiEvents |> AsyncResult.ofResult
-            let events = recordedEvents |> List.map (fun re -> re.Data)
+            let events = 
+                recordedEvents 
+                |> List.choose (function
+                    | RecordedDomainEvent e -> Some e
+                    | _ -> None)
+                |> List.map (fun re -> re.Data)
             return Expect.equal events expectedBenjiEvents' "The events should equal"
         } 
         |> Async.RunSynchronously
@@ -108,10 +104,8 @@ let testOuroborosBenji =
         asyncResult {
             let! repo = repoResult |> AsyncResult.ofResult
             let asOfDate = DateTime.UtcNow
-            let! currentName = 
-                Projection.currentName repo benjiId asOfDate
-                |> AsyncResult.map (fun n -> n.Name )
-            Expect.equal currentName "Benji" "current name should be Benji"
+            let! mealCount = Projection.mealCount repo benjiId asOfDate
+            Expect.equal mealCount 1 "meal count should equal one"
         }
         |> Async.RunSynchronously
         |> Expect.isOk
@@ -124,9 +118,7 @@ let testOuroborosMinnie =
         let onError e = sprintf "Error!: %A" e
         let executeCommand' = executeCommand minnieId
         result {
-            let! minnieCommands' = 
-                minnieCommands 
-                |> Result.mapError DogError.Validation
+            let! minnieCommands' = minnieCommands 
             return!
                 minnieCommands'
                 |> List.map executeCommand'
@@ -143,7 +135,12 @@ let testOuroborosMinnie =
             let! repo = repoResult |> AsyncResult.ofResult
             let! recordedEvents = repo.load minnieId
             let! expectedMinnieEvents' = expectedMinnieEvents |> AsyncResult.ofResult
-            let events = recordedEvents |> List.map (fun re -> re.Data)
+            let events = 
+                recordedEvents 
+                |> List.choose (function
+                    | RecordedDomainEvent e -> Some e
+                    | _ -> None)
+                |> List.map (fun re -> re.Data)
             return Expect.equal events expectedMinnieEvents' "The events should equal"
         } 
         |> Async.RunSynchronously
@@ -153,10 +150,8 @@ let testOuroborosMinnie =
         asyncResult {
             let! repo = repoResult |> AsyncResult.ofResult
             let asOfDate = DateTime.UtcNow
-            let! currentName = 
-                Projection.currentName repo minnieId asOfDate
-                |> AsyncResult.map (fun n -> n.Name )
-            Expect.equal currentName "Raggles" "current name should be Raggles"
+            let! mealCount = Projection.mealCount repo minnieId asOfDate
+            Expect.equal mealCount 1 "meal count shoud equal one"
         }
         |> Async.RunSynchronously
         |> Expect.isOk

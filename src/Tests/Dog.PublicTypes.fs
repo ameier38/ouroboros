@@ -14,11 +14,11 @@ type DogEvent =
     | Played
 
 type DogCommand =
-    | Create of Source * EffectiveDate * Dog
-    | Eat of Source * EffectiveDate
-    | Sleep of Source * EffectiveDate
-    | Wake of Source * EffectiveDate
-    | Play of Source * EffectiveDate
+    | Create of Dog
+    | Eat
+    | Sleep
+    | Wake
+    | Play
 
 type DogError =
     | IO of string

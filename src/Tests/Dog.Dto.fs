@@ -1,8 +1,6 @@
 namespace Test.Dog
 
-open System
 open Vertigo.Json
-open Ouroboros
 
 type DogDto =
     { name: string
@@ -66,18 +64,12 @@ module DogEventDto =
         | DogEventDto.Played -> DogEvent.Played |> Ok
 
 type DogCommandDto =
-    | Create of string * DateTime * DogDto
-    | Eat of string * DateTime
-    | Sleep of string * DateTime
-    | Wake of string * DateTime
-    | Play of string * DateTime
+    | Create of DogDto
+    | Eat
+    | Sleep
+    | Wake
+    | Play
 module DogCommandDto =
-    let serialize (dto:DogCommandDto) =
-        try Json.serializeToBytes dto |> Ok
-        with ex -> 
-            sprintf "could not serialize DogCommandDto %A\n%A" dto ex 
-            |> DogError.IO 
-            |> Error
     let deserialize json =
         try Json.deserializeFromBytes<DogCommandDto> json |> Ok
         with ex -> 
@@ -85,71 +77,20 @@ module DogCommandDto =
             |> DogError.IO 
             |> Error
     let fromDomain = function
-        | DogCommand.Create (source, effectiveDate, dog) ->
-            let source' = source |> Source.value
-            let effectiveDate' = effectiveDate |> EffectiveDate.value
-            let dogDto = dog |> DogDto.fromDomain
-            (source', effectiveDate', dogDto)
-            |> DogCommandDto.Create
-        | DogCommand.Eat (source, effectiveDate) ->
-            let source' = source |> Source.value
-            let effectiveDate' = effectiveDate |> EffectiveDate.value
-            (source', effectiveDate')
-            |> DogCommandDto.Eat
-        | DogCommand.Sleep (source, effectiveDate) ->
-            let source' = source |> Source.value
-            let effectiveDate' = effectiveDate |> EffectiveDate.value
-            (source', effectiveDate')
-            |> DogCommandDto.Sleep
-        | DogCommand.Wake (source, effectiveDate) ->
-            let source' = source |> Source.value
-            let effectiveDate' = effectiveDate |> EffectiveDate.value
-            (source', effectiveDate')
-            |> DogCommandDto.Wake
-        | DogCommand.Play (source, effectiveDate) ->
-            let source' = source |> Source.value
-            let effectiveDate' = effectiveDate |> EffectiveDate.value
-            (source', effectiveDate')
-            |> DogCommandDto.Play
+        | DogCommand.Create dog -> 
+            dog
+            |> DogDto.fromDomain
+            |> Create
+        | DogCommand.Eat -> Eat
+        | DogCommand.Sleep -> Sleep
+        | DogCommand.Wake -> Wake
+        | DogCommand.Play -> Play
     let toDomain = function
-        | DogCommandDto.Create (source, effectiveDate, dogDto) ->
-            result {
-                let! source' = source |> Source.create
-                let effectiveDate' = effectiveDate |> EffectiveDate
-                let! dog = dogDto |> DogDto.toDomain
-                return
-                    (source', effectiveDate', dog)
-                    |> DogCommand.Create
-            }
-        | DogCommandDto.Eat (source, effectiveDate) ->
-            result {
-                let! source' = source |> Source.create
-                let effectiveDate' = effectiveDate |> EffectiveDate
-                return
-                    (source', effectiveDate')
-                    |> DogCommand.Eat
-            }
-        | DogCommandDto.Sleep (source, effectiveDate) ->
-            result {
-                let! source' = source |> Source.create
-                let effectiveDate' = effectiveDate |> EffectiveDate
-                return
-                    (source', effectiveDate')
-                    |> DogCommand.Sleep
-            }
-        | DogCommandDto.Wake (source, effectiveDate) ->
-            result {
-                let! source' = source |> Source.create
-                let effectiveDate' = effectiveDate |> EffectiveDate
-                return
-                    (source', effectiveDate')
-                    |> DogCommand.Wake
-            }
-        | DogCommandDto.Play (source, effectiveDate) ->
-            result {
-                let! source' = source |> Source.create
-                let effectiveDate' = effectiveDate |> EffectiveDate
-                return
-                    (source', effectiveDate')
-                    |> DogCommand.Play
-            }
+        | Create dogDto ->
+            dogDto
+            |> DogDto.toDomain
+            |> Result.map DogCommand.Create
+        | Eat -> DogCommand.Eat |> Ok
+        | Sleep -> DogCommand.Sleep |> Ok
+        | Wake -> DogCommand.Wake |> Ok
+        | Play -> DogCommand.Play |> Ok

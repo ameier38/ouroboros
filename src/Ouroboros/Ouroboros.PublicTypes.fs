@@ -1,9 +1,9 @@
 namespace Ouroboros
 
 type DomainEventMeta =
-    { EffectiveDate: EffectiveDate
-      EffectiveOrder: EffectiveOrder
-      Source: Source }
+    { Source: Source 
+      EffectiveDate: EffectiveDate
+      EffectiveOrder: EffectiveOrder }
 
 type DeletedEventMeta =
     { Source: Source }
@@ -55,8 +55,8 @@ type RecordedEvent<'DomainEvent> =
     | RecordedDeletedEvent of RecordedDeletedEvent
 
 type DomainCommand<'DomainCommand> =
-    { EffectiveDate: EffectiveDate
-      Source: Source
+    { Source: Source
+      EffectiveDate: EffectiveDate
       Data: 'DomainCommand }
 
 type DeleteCommand =
@@ -112,12 +112,12 @@ type Commit<'DomainEvent, 'DomainError> =
 
 type Apply<'DomainState, 'DomainEvent, 'DomainError> =
     'DomainState
-     -> DomainEvent<'DomainEvent>
+     -> 'DomainEvent
      -> Result<'DomainState, 'DomainError>
 
 type Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> =
     'DomainState
-     -> 'DomainCommand
+     -> DomainCommand<'DomainCommand>
      -> Result<DomainEvent<'DomainEvent> list, 'DomainError>
 
 type Handle<'DomainCommand, 'DomainEvent, 'DomainError> =

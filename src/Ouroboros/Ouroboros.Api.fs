@@ -8,6 +8,12 @@ module List =
         let listB = items |> List.choose extractB
         (listA, listB)
 
+module DomainEventMeta =
+    let create effectiveDate effectiveOrder source =
+        { DomainEventMeta.EffectiveDate = effectiveDate
+          EffectiveOrder = effectiveOrder
+          Source = source }
+
 module SerializedRecordedEvent =
     let deserialize 
         (mapError:string -> 'DomainError)
@@ -57,7 +63,36 @@ module SerializedRecordedEvent =
                         |> RecordedDomainEvent
                 }
 
+module Command =
+    let createDomainCommand source effectiveDate command =
+        result {
+            let! source' = source |> Source.create
+            let effectiveDate' = effectiveDate |> EffectiveDate
+            return
+                { Source = source'
+                  EffectiveDate = effectiveDate'
+                  Data = command }
+                |> DomainCommand
+        }
+    let createDeleteCommand source deletion =
+        result {
+            let! source' = source |> Source.create
+            return
+                { Source = source'
+                  Data = deletion }
+                |> Delete
+        }
+
 module Event =
+    let createDomainEvent eventType event meta =
+        { DomainEvent.Type = eventType
+          Data = event
+          Meta = meta }
+        |> DomainEvent
+    let createDeletedEvent deletion meta =
+        { Data = deletion
+          Meta = meta }
+        |> DeletedEvent
     let serialize
         (mapError:string -> 'DomainError)
         (serializer:Serializer<'DomainEvent, 'DomainError>) 
@@ -115,8 +150,8 @@ module RecordedDomainEvent =
 module Repository =
     let create
         (store:Store<'StoreError>) 
-        (mapStoreError:'StoreError -> 'DomainError)
         (mapError:string -> 'DomainError)
+        (mapStoreError:'StoreError -> 'DomainError)
         (serializer:Serializer<'DomainEvent,'DomainError>) 
         (entityType:EntityType) =
         let createStreamId = StreamId.create entityType
@@ -163,6 +198,7 @@ module Handler =
             events
             |> List.filter (fun e -> e.Meta.EffectiveDate <= effectiveDate)
             |> List.sortBy (fun e -> (e.Meta.EffectiveDate, e.Meta.EffectiveOrder))
+            |> List.map (fun e -> e.Data)
             |> List.map Ok
             |> List.fold apply zero
         let decide 
@@ -171,7 +207,7 @@ module Handler =
             result {
                 let! domainEvents' = domainEvents
                 let! state = getState domainCommand.EffectiveDate domainEvents'
-                let! newEvents = aggregate.execute state domainCommand.Data
+                let! newEvents = aggregate.execute state domainCommand
                 return newEvents @ domainEvents'
             }
         let handle 
@@ -181,13 +217,11 @@ module Handler =
                 let! recordedEvents = repo.load entityId
                 let extractDomainEvent = function
                     | RecordedDomainEvent recordedDomainEvent ->
-                        recordedDomainEvent
-                        |> RecordedDomainEvent.toDomainEvent
-                        |> Some
+                        Some recordedDomainEvent
                     | _ -> None
-                let extractDeletedEvent = function
+                let extractDeletedEventId = function
                     | RecordedDeletedEvent deletedEvent ->
-                        Some deletedEvent
+                        Some deletedEvent.Data.EventId
                     | _ -> None
                 let extractDomainCommand = function
                     | DomainCommand domainCommand -> Some domainCommand
@@ -195,20 +229,29 @@ module Handler =
                 let extractDeleteCommand = function
                     | Delete deleteCommand -> Some deleteCommand
                     | _ -> None
-                let (domainEvents, deletedEvents) =
+                let (domainEvents, deletedEventIds) =
                     recordedEvents
-                    |> List.divide extractDomainEvent extractDeletedEvent
+                    |> List.divide extractDomainEvent extractDeletedEventId
                 let (domainCommands, deleteCommands) =
                     commands
                     |> List.divide extractDomainCommand extractDeleteCommand
-                let! newDomainEvents = 
-                    domainCommands
-                    |> List.fold decide (Ok domainEvents)
-                    |> Result.map (List.map DomainEvent)
-                    |> AsyncResult.ofResult
+                let newDeletedEventIds =
+                    deleteCommands
+                    |> List.map (fun c -> c.Data.EventId)
                 let newDeletedEvents =
                     deleteCommands
                     |> List.map DeleteCommand.toEvent
+                let allDeletedEventIds = deletedEventIds @ newDeletedEventIds
+                let filteredDomainEvents =
+                    domainEvents
+                    |> List.filter (fun e ->
+                        allDeletedEventIds |> List.contains e.Id |> not)
+                    |> List.map RecordedDomainEvent.toDomainEvent
+                let! newDomainEvents = 
+                    domainCommands
+                    |> List.fold decide (Ok filteredDomainEvents)
+                    |> Result.map (List.map DomainEvent)
+                    |> AsyncResult.ofResult
                 let newEvents = newDomainEvents @ newDeletedEvents
                 // TODO: change Any to the count of events
                 do! repo.commit entityId Any newEvents
