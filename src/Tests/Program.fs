@@ -32,7 +32,7 @@ let benjiCommands =
         let! benji' = benji
         return!
             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create benji')
-              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) ]
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Play) ]
             |> List.map (fun (s, d, c) -> Command.createDomainCommand s d c)
             |> Result.sequence
     } |> Result.mapError DogError.Validation

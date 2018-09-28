@@ -4,9 +4,9 @@ open System
 open Vertigo.Json
 
 type DomainEventMetaDto =
-    { EffectiveDate: DateTime
-      EffectiveOrder: int
-      Source: string }
+    { Source: string 
+      EffectiveDate: DateTime
+      EffectiveOrder: int }
 module DomainEventMetaDto =
     let fromDomain (meta:DomainEventMeta) =
         { EffectiveDate = meta.EffectiveDate |> EffectiveDate.value

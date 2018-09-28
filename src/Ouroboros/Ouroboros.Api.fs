@@ -46,14 +46,18 @@ module SerializedRecordedEvent =
                 }
             | _ ->
                 result {
+                    printfn "deserializing domain event"
                     let! domainEvent = 
                         serializedEventData 
                         |> serializer.deserialize
+                    printfn "deserialized domain event"
+                    printfn "deserializing domain event meta"
                     let! domainEventMeta = 
                         serializedEventMeta 
                         |> DomainEventMetaDto.deserialize
                         |> Result.bind DomainEventMetaDto.toDomain
                         |> Result.mapError mapError
+                    printfn "deserialized domain event meta"
                     return
                         { RecordedDomainEvent.Id = eventId
                           CreatedDate = createdDate
@@ -120,14 +124,18 @@ module Event =
             }
         | DomainEvent { Type = eventType; Data = domainEvent; Meta = meta } ->
             result {
+                printfn "serializing domain event"
                 let! serializedEventData =
                     domainEvent
                     |> serializer.serialize
+                printfn "serialized domain event"
+                printfn "serializing domain event meta"
                 let! serializedEventMeta =
                     meta
                     |> DomainEventMetaDto.fromDomain
                     |> DomainEventMetaDto.serialize
                     |> Result.mapError mapError
+                printfn "serialized domain event meta"
                 return
                     { SerializedEvent.Type = eventType
                       Data = serializedEventData
@@ -172,11 +180,13 @@ module Repository =
             }
         let commit entityId expectedVersion events = 
             asyncResult {
+                printfn "serializing events"
                 let! serializedEvents =
                     events
                     |> List.map serialize
                     |> Result.sequence
                     |> AsyncResult.ofResult
+                printfn "serialized events"
                 return!
                     entityId
                     |> createStreamId
@@ -202,19 +212,27 @@ module Handler =
             |> List.map Ok
             |> List.fold apply zero
         let decide 
-            (domainEvents:Result<DomainEvent<'DomainEvent> list, 'DomainError>) 
+            eventAccumulator
             (domainCommand:DomainCommand<'DomainCommand>) =
             result {
-                let! domainEvents' = domainEvents
-                let! state = getState domainCommand.EffectiveDate domainEvents'
-                let! newEvents = aggregate.execute state domainCommand
-                return newEvents @ domainEvents'
+                let! (allDomainEvents, newDomainEvents) = eventAccumulator
+                printfn "getting state"
+                let! state = getState domainCommand.EffectiveDate allDomainEvents
+                printfn "got state %A" state
+                printfn "executing command %A" domainCommand
+                let! generatedDomainEvents = aggregate.execute state domainCommand
+                printfn "generated events %A" generatedDomainEvents
+                let newAllDomainEvents = generatedDomainEvents @ allDomainEvents
+                let newNewDomainEvents = generatedDomainEvents @ newDomainEvents
+                return (newAllDomainEvents, newNewDomainEvents)
             }
         let handle 
             (entityId:EntityId) 
             (commands:Command<'DomainCommand> list) =
             asyncResult {
+                printfn "loading events"
                 let! recordedEvents = repo.load entityId
+                printfn "loaded events"
                 let extractDomainEvent = function
                     | RecordedDomainEvent recordedDomainEvent ->
                         Some recordedDomainEvent
@@ -229,12 +247,18 @@ module Handler =
                 let extractDeleteCommand = function
                     | Delete deleteCommand -> Some deleteCommand
                     | _ -> None
+                printfn "extracting events"
                 let (domainEvents, deletedEventIds) =
                     recordedEvents
                     |> List.divide extractDomainEvent extractDeletedEventId
+                printfn "extracted domain events"
+                printfn "extracted deleted event ids"
+                printfn "extracting commands"
                 let (domainCommands, deleteCommands) =
                     commands
                     |> List.divide extractDomainCommand extractDeleteCommand
+                printfn "extracted domain commands"
+                printfn "extracted delete commands"
                 let newDeletedEventIds =
                     deleteCommands
                     |> List.map (fun c -> c.Data.EventId)
@@ -249,12 +273,16 @@ module Handler =
                     |> List.map RecordedDomainEvent.toDomainEvent
                 let! newDomainEvents = 
                     domainCommands
-                    |> List.fold decide (Ok filteredDomainEvents)
+                    |> List.fold decide (Ok (filteredDomainEvents, []))
+                    |> Result.map snd
                     |> Result.map (List.map DomainEvent)
                     |> AsyncResult.ofResult
+                printfn "new domain events %A" newDomainEvents
                 let newEvents = newDomainEvents @ newDeletedEvents
                 // TODO: change Any to the count of events
+                printfn "commiting events"
                 do! repo.commit entityId Any newEvents
+                printfn "commited events"
                 return newEvents
             }
         { handle = handle }
