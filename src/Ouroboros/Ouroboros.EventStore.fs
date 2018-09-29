@@ -8,10 +8,13 @@ module SerializedRecordedEvent =
     let fromResolvedEvent (resolvedEvent:ResolvedEvent) = 
         result {
             let eventId = EventId resolvedEvent.Event.EventId
-            let! eventType = EventType.create resolvedEvent.Event.EventType
+            let! eventNumber = resolvedEvent.Event.EventNumber |> EventNumber.create
+            let createdDate = resolvedEvent.Event.Created |> CreatedDate
+            let! eventType = resolvedEvent.Event.EventType |> EventType.create
             return
                 { SerializedRecordedEvent.Id = eventId
-                  CreatedDate = resolvedEvent.Event.Created |> CreatedDate
+                  EventNumber = eventNumber
+                  CreatedDate = createdDate
                   Type = eventType 
                   Data = resolvedEvent.Event.Data
                   Meta = resolvedEvent.Event.Metadata }

@@ -32,7 +32,8 @@ let benjiCommands =
         let! benji' = benji
         return!
             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create benji')
-              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Play) ]
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
+              ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) ]
             |> List.map (fun (s, d, c) -> Command.createDomainCommand s d c)
             |> Result.sequence
     } |> Result.mapError DogError.Validation
@@ -40,11 +41,17 @@ let benjiCommands =
 let minnieCommands =
     result {
         let! minnie' = minnie
-        return!
+        let! domainCommands =
             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create minnie')
               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) ]
             |> List.map (fun (s, d, c) -> Command.createDomainCommand s d c)
             |> Result.sequence
+        let! deleteEvent1 = (1L, "mistake") ||> Deletion.create
+        let! deleteCommands =
+            [ ("test", deleteEvent1) ]
+            |> List.map (fun (s, d) -> Command.createDeleteCommand s d)
+            |> Result.sequence
+        return domainCommands @ deleteCommands
     } |> Result.mapError DogError.Validation
 
 let expectedBenjiEvents = 
@@ -71,7 +78,7 @@ let executeCommand dogId command =
     }
 
 let testOuroborosBenji =
-    ftest "test Ouroboros Benji" {
+    test "test Ouroboros Benji" {
         let executeCommand' = executeCommand benjiId
         result {
             let! benjiCommands' = benjiCommands
@@ -113,7 +120,7 @@ let testOuroborosBenji =
     }
 
 let testOuroborosMinnie =
-    test "test Ouroboros Minnie" {
+    ftest "test Ouroboros Minnie" {
         let onSuccess r = sprintf "Success!"
         let onError e = sprintf "Error!: %A" e
         let executeCommand' = executeCommand minnieId

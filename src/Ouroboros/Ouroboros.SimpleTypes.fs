@@ -63,6 +63,12 @@ module EventId =
     let value (EventId guid) = guid
     let create guid = EventId guid
 
+// Number of the event in the stream
+type EventNumber = private EventNumber of PositiveLong
+module EventNumber =
+    let value (EventNumber number) = number |> PositiveLong.value
+    let create number = PositiveLong.create number |> Result.map EventNumber
+
 /// Friendly name for the type of event (e.g., Dog Played)
 type EventType = private EventType of string
 module EventType =

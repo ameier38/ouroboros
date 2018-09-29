@@ -9,7 +9,7 @@ type DeletedEventMeta =
     { Source: Source }
 
 type Deletion =
-    { EventId: EventId
+    { EventNumber: EventNumber
       Reason: DeletionReason }
 
 type DomainEvent<'DomainEvent> =
@@ -32,6 +32,7 @@ type SerializedEvent =
 
 type SerializedRecordedEvent =
     { Id: EventId
+      EventNumber: EventNumber
       CreatedDate: CreatedDate
       Type: EventType
       Data: byte array
@@ -39,6 +40,7 @@ type SerializedRecordedEvent =
 
 type RecordedDomainEvent<'DomainEvent> =
     { Id: EventId
+      EventNumber: EventNumber
       CreatedDate: CreatedDate
       Type: EventType
       Data: 'DomainEvent
@@ -46,6 +48,7 @@ type RecordedDomainEvent<'DomainEvent> =
 
 type RecordedDeletedEvent =
     { Id: EventId
+      EventNumber: EventNumber
       CreatedDate: CreatedDate
       Data: Deletion
       Meta: DeletedEventMeta }

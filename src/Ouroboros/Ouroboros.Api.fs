@@ -8,6 +8,16 @@ module List =
         let listB = items |> List.choose extractB
         (listA, listB)
 
+module Deletion =
+    let create eventNumber reason =
+        result {
+            let! eventNumber' = eventNumber |> EventNumber.create
+            let! reason' = reason |> DeletionReason.create
+            return
+                { Deletion.EventNumber = eventNumber'
+                  Reason = reason' }
+        }
+
 module DomainEventMeta =
     let create effectiveDate effectiveOrder source =
         { DomainEventMeta.EffectiveDate = effectiveDate
@@ -20,6 +30,7 @@ module SerializedRecordedEvent =
         (serializer:Serializer<'DomainEvent, 'DomainError>)
         : SerializedRecordedEvent -> Result<RecordedEvent<'DomainEvent>, 'DomainError> =
         fun ({ SerializedRecordedEvent.Id = eventId
+               EventNumber = eventNumber
                CreatedDate = createdDate
                Type = eventType 
                Data = serializedEventData
@@ -27,18 +38,23 @@ module SerializedRecordedEvent =
             match eventType |> EventType.value with
             | DeletedEventType ->
                 result {
+                    printfn "deserializing deleted event"
                     let! deletion = 
                         serializedEventData 
                         |> DeletionDto.deserialize
                         |> Result.bind DeletionDto.toDomain
                         |> Result.mapError mapError 
+                    printfn "deserialized deleted event"
+                    printfn "deserializing deleted event meta"
                     let! deletedEventMeta = 
                         serializedEventMeta
                         |> DeletedEventMetaDto.deserialize
                         |> Result.bind DeletedEventMetaDto.toDomain
                         |> Result.mapError mapError
+                    printfn "deserialized deleted event meta"
                     return
                         { RecordedDeletedEvent.Id = eventId
+                          EventNumber = eventNumber
                           CreatedDate = createdDate
                           Data = deletion
                           Meta = deletedEventMeta }
@@ -60,6 +76,7 @@ module SerializedRecordedEvent =
                     printfn "deserialized domain event meta"
                     return
                         { RecordedDomainEvent.Id = eventId
+                          EventNumber = eventNumber
                           CreatedDate = createdDate
                           Type = eventType
                           Data = domainEvent
@@ -103,16 +120,20 @@ module Event =
         : Event<'DomainEvent> -> Result<SerializedEvent, 'DomainError> = function
         | DeletedEvent { Data = deletion; Meta = meta } ->
             result {
+                printfn "serializing deleted event"
                 let! serializedEventData =
                     deletion
                     |> DeletionDto.fromDomain
                     |> DeletionDto.serialize
                     |> Result.mapError mapError
+                printfn "serialized deleted event"
+                printfn "serializing deleted event meta"
                 let! serializedEventMeta =
                     meta
                     |> DeletedEventMetaDto.fromDomain
                     |> DeletedEventMetaDto.serialize
                     |> Result.mapError mapError
+                printfn "serialized deleted event meta"
                 let! eventType = 
                     DeletedEventType 
                     |> EventType.create
@@ -237,9 +258,9 @@ module Handler =
                     | RecordedDomainEvent recordedDomainEvent ->
                         Some recordedDomainEvent
                     | _ -> None
-                let extractDeletedEventId = function
+                let extractDeletedEventNumber = function
                     | RecordedDeletedEvent deletedEvent ->
-                        Some deletedEvent.Data.EventId
+                        Some deletedEvent.Data.EventNumber
                     | _ -> None
                 let extractDomainCommand = function
                     | DomainCommand domainCommand -> Some domainCommand
@@ -248,28 +269,32 @@ module Handler =
                     | Delete deleteCommand -> Some deleteCommand
                     | _ -> None
                 printfn "extracting events"
-                let (domainEvents, deletedEventIds) =
+                let (domainEvents, deletedEventNumbers) =
                     recordedEvents
-                    |> List.divide extractDomainEvent extractDeletedEventId
+                    |> List.divide extractDomainEvent extractDeletedEventNumber
                 printfn "extracted domain events"
-                printfn "extracted deleted event ids"
+                printfn "extracted deleted event numbers"
                 printfn "extracting commands"
                 let (domainCommands, deleteCommands) =
                     commands
                     |> List.divide extractDomainCommand extractDeleteCommand
                 printfn "extracted domain commands"
                 printfn "extracted delete commands"
-                let newDeletedEventIds =
+                let newDeletedEventNumbers =
                     deleteCommands
-                    |> List.map (fun c -> c.Data.EventId)
+                    |> List.map (fun c -> c.Data.EventNumber)
                 let newDeletedEvents =
                     deleteCommands
                     |> List.map DeleteCommand.toEvent
-                let allDeletedEventIds = deletedEventIds @ newDeletedEventIds
+                let allDeletedEventNumbers = 
+                    deletedEventNumbers 
+                    @ newDeletedEventNumbers
                 let filteredDomainEvents =
                     domainEvents
                     |> List.filter (fun e ->
-                        allDeletedEventIds |> List.contains e.Id |> not)
+                        allDeletedEventNumbers 
+                        |> List.contains e.EventNumber 
+                        |> not)
                     |> List.map RecordedDomainEvent.toDomainEvent
                 let! newDomainEvents = 
                     domainCommands

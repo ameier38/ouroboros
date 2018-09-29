@@ -48,18 +48,18 @@ module DeletedEventMetaDto =
         with ex -> sprintf "could not deserialize DeletedEventMetaDto: %A" ex |> Error
 
 type DeletionDto =
-    { EventId: Guid
+    { EventNumber: int64
       Reason: string }
 module DeletionDto =
     let fromDomain (deletion:Deletion) =
-        { EventId = deletion.EventId |> EventId.value
+        { EventNumber = deletion.EventNumber |> EventNumber.value
           Reason = deletion.Reason |> DeletionReason.value }
     let toDomain (dto:DeletionDto) =
         result {
-            let eventId = dto.EventId |> EventId.create
+            let! eventNumber = dto.EventNumber |> EventNumber.create
             let! reason = dto.Reason |> DeletionReason.create
             return
-                { Deletion.EventId = eventId
+                { Deletion.EventNumber = eventNumber
                   Reason = reason }
         }
     let serialize (dto:DeletionDto) =
