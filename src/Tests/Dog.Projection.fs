@@ -11,19 +11,12 @@ let mealsFolder acc event =
 
 let mealCount
     (repo:Repository<DogEvent, DogError>) =
-    fun entityId asOfDate ->
+    fun entityId ->
         asyncResult {
             let initialMealCount = 0
-            let! recordedEvents = repo.load entityId
-            let filteredEvents =
-                recordedEvents
-                |> List.choose (function
-                    | RecordedDomainEvent e -> Some e
-                    | _ -> None)
-                |> List.filter (fun { CreatedDate = (CreatedDate createdDate)} -> 
-                    createdDate <= asOfDate)
-                |> List.map (fun e -> e.Data)
+            let! domainEvents = repo.load entityId
             return
-                filteredEvents
+                domainEvents
+                |> List.map (fun e -> e.Data)
                 |> List.fold mealsFolder initialMealCount
         }

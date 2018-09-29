@@ -109,6 +109,10 @@ type Serializer<'DomainEvent, 'DomainError> =
 
 type Load<'DomainEvent, 'DomainError> = 
     EntityId 
+     -> AsyncResult<RecordedDomainEvent<'DomainEvent> list, 'DomainError>
+
+type LoadAll<'DomainEvent, 'DomainError> =
+    EntityId
      -> AsyncResult<RecordedEvent<'DomainEvent> list, 'DomainError>
 
 type Commit<'DomainEvent, 'DomainError> = 
@@ -134,6 +138,7 @@ type Handle<'DomainCommand, 'DomainEvent, 'DomainError> =
 
 type Repository<'DomainEvent, 'DomainError> =
     { load: Load<'DomainEvent, 'DomainError>
+      loadAll: LoadAll<'DomainEvent, 'DomainError>
       commit: Commit<'DomainEvent, 'DomainError> }
 
 type Aggregate<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> =

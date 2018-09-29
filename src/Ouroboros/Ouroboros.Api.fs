@@ -54,20 +54,16 @@ module SerializedRecordedEvent =
             match eventType with
             | DeletedEventType ->
                 result {
-                    printfn "deserializing deleted event"
                     let! deletion = 
                         serializedEventData 
                         |> DeletionDto.deserialize
                         |> Result.bind DeletionDto.toDomain
                         |> Result.mapError mapError 
-                    printfn "deserialized deleted event"
-                    printfn "deserializing deleted event meta"
                     let! deletedEventMeta = 
                         serializedEventMeta
                         |> DeletedEventMetaDto.deserialize
                         |> Result.bind DeletedEventMetaDto.toDomain
                         |> Result.mapError mapError
-                    printfn "deserialized deleted event meta"
                     return
                         { RecordedDeletedEvent.Id = eventId
                           EventNumber = eventNumber
@@ -78,18 +74,14 @@ module SerializedRecordedEvent =
                 }
             | DomainEventType domainEventType ->
                 result {
-                    printfn "deserializing domain event"
                     let! domainEvent = 
                         serializedEventData 
                         |> serializer.deserialize
-                    printfn "deserialized domain event"
-                    printfn "deserializing domain event meta"
                     let! domainEventMeta = 
                         serializedEventMeta 
                         |> DomainEventMetaDto.deserialize
                         |> Result.bind DomainEventMetaDto.toDomain
                         |> Result.mapError mapError
-                    printfn "deserialized domain event meta"
                     return
                         { RecordedDomainEvent.Id = eventId
                           EventNumber = eventNumber
@@ -101,6 +93,12 @@ module SerializedRecordedEvent =
                 }
 
 module Command =
+    let extractDomainCommand = function
+        | DomainCommand domainCommand -> Some domainCommand
+        | _ -> None
+    let extractDeleteCommand = function
+        | Delete deleteCommand -> Some deleteCommand
+        | _ -> None
     let createDomainCommand source effectiveDate command =
         result {
             let! source' = source |> Source.create
@@ -136,20 +134,16 @@ module Event =
         : Event<'DomainEvent> -> Result<SerializedEvent, 'DomainError> = function
         | DeletedEvent { Data = deletion; Meta = meta } ->
             result {
-                printfn "serializing deleted event"
                 let! serializedEventData =
                     deletion
                     |> DeletionDto.fromDomain
                     |> DeletionDto.serialize
                     |> Result.mapError mapError
-                printfn "serialized deleted event"
-                printfn "serializing deleted event meta"
                 let! serializedEventMeta =
                     meta
                     |> DeletedEventMetaDto.fromDomain
                     |> DeletedEventMetaDto.serialize
                     |> Result.mapError mapError
-                printfn "serialized deleted event meta"
                 return
                     { SerializedEvent.Type = DeletedEventType
                       Data = serializedEventData
@@ -157,18 +151,14 @@ module Event =
             }
         | DomainEvent { Type = domainEventType; Data = domainEvent; Meta = meta } ->
             result {
-                printfn "serializing domain event"
                 let! serializedEventData =
                     domainEvent
                     |> serializer.serialize
-                printfn "serialized domain event"
-                printfn "serializing domain event meta"
                 let! serializedEventMeta =
                     meta
                     |> DomainEventMetaDto.fromDomain
                     |> DomainEventMetaDto.serialize
                     |> Result.mapError mapError
-                printfn "serialized domain event meta"
                 let eventType = domainEventType |> DomainEventType
                 return
                     { SerializedEvent.Type = eventType
@@ -182,6 +172,16 @@ module DeleteCommand =
         { Data = command.Data
           Meta = meta }
         |> DeletedEvent
+
+module RecordedEvent =
+    let extractDomainEvent = function
+        | RecordedDomainEvent recordedDomainEvent ->
+            Some recordedDomainEvent
+        | _ -> None
+    let extractDeletedEvent = function
+        | RecordedDeletedEvent deletedEvent ->
+            Some deletedEvent
+        | _ -> None
 
 module RecordedDomainEvent =
     let toDomainEvent recordedDomainEvent =
@@ -199,7 +199,7 @@ module Repository =
         let createStreamId = StreamId.create entityType
         let deserialize = SerializedRecordedEvent.deserialize mapError serializer
         let serialize = Event.serialize mapError serializer
-        let load entityId = 
+        let loadAll entityId = 
             asyncResult {
                 let streamStart  = StreamStart.zero
                 let! serializedRecordedEvents = 
@@ -212,15 +212,31 @@ module Repository =
                     |> Result.sequence
                     |> AsyncResult.ofResult
             }
+        let load entityId =
+            asyncResult {
+                let! recordedEvents = loadAll entityId
+                let (domainEvents, deletedEvents) =
+                    recordedEvents
+                    |> List.divide 
+                        RecordedEvent.extractDomainEvent 
+                        RecordedEvent.extractDeletedEvent
+                let deletedEventNumbers =
+                    deletedEvents
+                    |> List.map (fun e -> e.EventNumber)
+                return
+                    domainEvents
+                    |> List.filter (fun e ->
+                        deletedEventNumbers 
+                        |> List.contains e.EventNumber 
+                        |> not)
+            }
         let commit entityId expectedVersion events = 
             asyncResult {
-                printfn "serializing events"
                 let! serializedEvents =
                     events
                     |> List.map serialize
                     |> Result.sequence
                     |> AsyncResult.ofResult
-                printfn "serialized events"
                 return!
                     entityId
                     |> createStreamId
@@ -228,6 +244,7 @@ module Repository =
                     |> AsyncResult.mapError mapStoreError
             }
         { load = load
+          loadAll = loadAll
           commit = commit }
 
 module Handler =
@@ -264,63 +281,37 @@ module Handler =
             (entityId:EntityId) 
             (commands:Command<'DomainCommand> list) =
             asyncResult {
-                printfn "loading events"
-                let! recordedEvents = repo.load entityId
-                printfn "loaded events"
-                let extractDomainEvent = function
-                    | RecordedDomainEvent recordedDomainEvent ->
-                        Some recordedDomainEvent
-                    | _ -> None
-                let extractDeletedEventNumber = function
-                    | RecordedDeletedEvent deletedEvent ->
-                        Some deletedEvent.Data.EventNumber
-                    | _ -> None
-                let extractDomainCommand = function
-                    | DomainCommand domainCommand -> Some domainCommand
-                    | _ -> None
-                let extractDeleteCommand = function
-                    | Delete deleteCommand -> Some deleteCommand
-                    | _ -> None
-                printfn "extracting events"
-                let (domainEvents, deletedEventNumbers) =
-                    recordedEvents
-                    |> List.divide extractDomainEvent extractDeletedEventNumber
-                printfn "extracted domain events"
-                printfn "extracted deleted event numbers"
-                printfn "extracting commands"
+                printfn "handling commands\n%A" commands
+                let! domainEvents = repo.load entityId
+                printfn "domainEvents\n%A" domainEvents
                 let (domainCommands, deleteCommands) =
                     commands
-                    |> List.divide extractDomainCommand extractDeleteCommand
-                printfn "extracted domain commands"
-                printfn "extracted delete commands"
-                let newDeletedEventNumbers =
+                    |> List.divide 
+                        Command.extractDomainCommand 
+                        Command.extractDeleteCommand
+                let deletedEventNumbers =
                     deleteCommands
                     |> List.map (fun c -> c.Data.EventNumber)
                 let newDeletedEvents =
                     deleteCommands
                     |> List.map DeleteCommand.toEvent
-                let allDeletedEventNumbers = 
-                    deletedEventNumbers 
-                    @ newDeletedEventNumbers
                 let filteredDomainEvents =
                     domainEvents
                     |> List.filter (fun e ->
-                        allDeletedEventNumbers 
+                        deletedEventNumbers 
                         |> List.contains e.EventNumber 
                         |> not)
                     |> List.map RecordedDomainEvent.toDomainEvent
+                printfn "filteredDomainEvents\n%A" filteredDomainEvents
                 let! newDomainEvents = 
                     domainCommands
                     |> List.fold decide (Ok (filteredDomainEvents, []))
                     |> Result.map snd
                     |> Result.map (List.map DomainEvent)
                     |> AsyncResult.ofResult
-                printfn "new domain events %A" newDomainEvents
                 let newEvents = newDomainEvents @ newDeletedEvents
                 // TODO: change Any to the count of events
-                printfn "commiting events"
                 do! repo.commit entityId Any newEvents
-                printfn "commited events"
                 return newEvents
             }
         { handle = handle }

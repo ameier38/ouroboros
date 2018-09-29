@@ -16,6 +16,16 @@ type Execute =
      -> DomainCommand<DogCommand>
      -> Result<DomainEvent<DogEvent> list, DogError>
 
+module Dog =
+    let create name breed =
+        result {
+            let! name' = name |> Name.create
+            let! breed' = breed |> Breed.create
+            return
+                { Name = name'
+                  Breed = breed' }
+        }
+
 module DogError =
     let io s = DogError.IO s |> Error
     let validation s = DogError.Validation s |> Error
@@ -67,7 +77,7 @@ module DomainEvent =
         | DogEvent.Played -> createEffectiveOrder 5
     let createEventType eventType =
         eventType
-        |> EventType.create
+        |> DomainEventType.create
         |> Result.mapError DogError.Validation
     let getEventType = function
         | DogEvent.Born _ -> createEventType "Born"
