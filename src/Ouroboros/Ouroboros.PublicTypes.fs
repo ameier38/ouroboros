@@ -12,8 +12,12 @@ type Deletion =
     { EventNumber: EventNumber
       Reason: DeletionReason }
 
+type EventType =
+    | DomainEventType of DomainEventType
+    | DeletedEventType
+
 type DomainEvent<'DomainEvent> =
-    { Type: EventType
+    { Type: DomainEventType
       Data: 'DomainEvent
       Meta: DomainEventMeta }
 
@@ -42,7 +46,7 @@ type RecordedDomainEvent<'DomainEvent> =
     { Id: EventId
       EventNumber: EventNumber
       CreatedDate: CreatedDate
-      Type: EventType
+      Type: DomainEventType
       Data: 'DomainEvent
       Meta: DomainEventMeta }
 

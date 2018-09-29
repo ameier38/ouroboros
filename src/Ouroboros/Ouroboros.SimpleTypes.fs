@@ -70,12 +70,12 @@ module EventNumber =
     let create number = PositiveLong.create number |> Result.map EventNumber
 
 /// Friendly name for the type of event (e.g., Dog Played)
-type EventType = private EventType of string
-module EventType =
-    let value (EventType eventType) = eventType
+type DomainEventType = private DomainEventType of string
+module DomainEventType =
+    let value (DomainEventType eventType) = eventType
     let create = function 
-        | DeletedEventType -> sprintf "%s is a reserved EventType" DeletedEventType |> Error
-        | eventType -> ConstrainedType.createString EventType 50 eventType
+        | DeletedEventTypeValue -> sprintf "%s is a reserved EventType" DeletedEventTypeValue |> Error
+        | eventType -> ConstrainedType.createString DomainEventType 50 eventType
 
 /// Date at which event is effective in the domain
 type EffectiveDate = EffectiveDate of DateTime

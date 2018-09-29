@@ -8,6 +8,22 @@ module List =
         let listB = items |> List.choose extractB
         (listA, listB)
 
+module EventType =
+    let create = function
+        | DeletedEventTypeValue ->
+            DeletedEventType
+            |> Ok
+        | domainEventType ->
+            domainEventType
+            |> DomainEventType.create 
+            |> Result.map DomainEventType
+    let value = function
+        | DeletedEventType -> 
+            DeletedEventTypeValue
+        | DomainEventType eventType -> 
+            eventType 
+            |> DomainEventType.value
+
 module Deletion =
     let create eventNumber reason =
         result {
@@ -35,7 +51,7 @@ module SerializedRecordedEvent =
                Type = eventType 
                Data = serializedEventData
                Meta = serializedEventMeta }) ->
-            match eventType |> EventType.value with
+            match eventType with
             | DeletedEventType ->
                 result {
                     printfn "deserializing deleted event"
@@ -60,7 +76,7 @@ module SerializedRecordedEvent =
                           Meta = deletedEventMeta }
                         |> RecordedDeletedEvent
                 }
-            | _ ->
+            | DomainEventType domainEventType ->
                 result {
                     printfn "deserializing domain event"
                     let! domainEvent = 
@@ -78,7 +94,7 @@ module SerializedRecordedEvent =
                         { RecordedDomainEvent.Id = eventId
                           EventNumber = eventNumber
                           CreatedDate = createdDate
-                          Type = eventType
+                          Type = domainEventType
                           Data = domainEvent
                           Meta = domainEventMeta }
                         |> RecordedDomainEvent
@@ -134,16 +150,12 @@ module Event =
                     |> DeletedEventMetaDto.serialize
                     |> Result.mapError mapError
                 printfn "serialized deleted event meta"
-                let! eventType = 
-                    DeletedEventType 
-                    |> EventType.create
-                    |> Result.mapError mapError
                 return
-                    { SerializedEvent.Type = eventType
+                    { SerializedEvent.Type = DeletedEventType
                       Data = serializedEventData
                       Meta = serializedEventMeta }
             }
-        | DomainEvent { Type = eventType; Data = domainEvent; Meta = meta } ->
+        | DomainEvent { Type = domainEventType; Data = domainEvent; Meta = meta } ->
             result {
                 printfn "serializing domain event"
                 let! serializedEventData =
@@ -157,6 +169,7 @@ module Event =
                     |> DomainEventMetaDto.serialize
                     |> Result.mapError mapError
                 printfn "serialized domain event meta"
+                let eventType = domainEventType |> DomainEventType
                 return
                     { SerializedEvent.Type = eventType
                       Data = serializedEventData

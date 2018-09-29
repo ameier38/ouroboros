@@ -1,4 +1,4 @@
 module Ouroboros.Constants
 
 [<Literal>] 
-let DeletedEventType = "Deleted"
+let DeletedEventTypeValue = "Deleted"
