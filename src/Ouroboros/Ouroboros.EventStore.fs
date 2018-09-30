@@ -3,15 +3,19 @@ module Ouroboros.EventStore
 open System
 open SimpleType
 open EventStore.ClientAPI
+open Ouroboros.Api
 
 module SerializedRecordedEvent =
     let fromResolvedEvent (resolvedEvent:ResolvedEvent) = 
         result {
             let eventId = EventId resolvedEvent.Event.EventId
-            let! eventType = EventType.create resolvedEvent.Event.EventType
+            let! eventNumber = resolvedEvent.Event.EventNumber |> EventNumber.create
+            let createdDate = resolvedEvent.Event.Created |> CreatedDate
+            let! eventType = resolvedEvent.Event.EventType |> EventType.create
             return
                 { SerializedRecordedEvent.Id = eventId
-                  CreatedDate = resolvedEvent.Event.Created |> CreatedDate
+                  EventNumber = eventNumber
+                  CreatedDate = createdDate
                   Type = eventType 
                   Data = resolvedEvent.Event.Data
                   Meta = resolvedEvent.Event.Metadata }
@@ -20,7 +24,7 @@ module SerializedRecordedEvent =
 module SerializedEvent =
     let toEventData (event:SerializedEvent) =
         let guid = Guid.NewGuid()
-        let eventType = EventType.value event.Type
+        let eventType = event.Type |> EventType.value
         EventData(guid, eventType, true, event.Data, event.Meta)
 
 module ExpectedVersion =

@@ -4,25 +4,19 @@ module Test.Dog.Projection
 open Ouroboros
 open Test.Dog.Implementation
 
-type CurrentName =
-    { Name: string }
-
-let currentNameFolder acc event =
+let mealsFolder acc event =
     match event with
-    | { RecordedEvent.Data = (DogEvent.Born dog) } -> { acc with CurrentName.Name = dog.Name |> Name.value }
-    | { RecordedEvent.Data = (DogEvent.Renamed name) } -> { acc with CurrentName.Name = name |> Name.value }
+    | DogEvent.Ate -> acc + 1
     | _ -> acc
 
-let currentName
+let mealCount
     (repo:Repository<DogEvent, DogError>) =
-    fun entityId asOfDate ->
+    fun entityId ->
         asyncResult {
-            let initialCurrentName = { Name = "" }
-            let! events = repo.load entityId
-            let filteredEvents =
-                events
-                |> List.filter (fun { CreatedDate = (CreatedDate createdDate)} -> createdDate <= asOfDate)
+            let initialMealCount = 0
+            let! domainEvents = repo.load entityId
             return
-                filteredEvents
-                |> List.fold currentNameFolder initialCurrentName
+                domainEvents
+                |> List.map (fun e -> e.Data)
+                |> List.fold mealsFolder initialMealCount
         }

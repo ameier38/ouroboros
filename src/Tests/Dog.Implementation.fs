@@ -8,24 +8,27 @@ open Test.Config
 
 type Apply =
     DogState
-     -> RecordedEvent<DogEvent>
+     -> DogEvent
      -> Result<DogState, DogError>
 
 type Execute =
     DogState
-     -> DogCommand
-     -> AsyncResult<Event<DogEvent> list, DogError>
+     -> DomainCommand<DogCommand>
+     -> Result<DomainEvent<DogEvent> list, DogError>
+
+module Dog =
+    let create name breed =
+        result {
+            let! name' = name |> Name.create
+            let! breed' = breed |> Breed.create
+            return
+                { Name = name'
+                  Breed = breed' }
+        }
 
 module DogError =
     let io s = DogError.IO s |> Error
     let validation s = DogError.Validation s |> Error
-
-let (|DogState|_|) = function
-    | NoDog -> None
-    | Bored dog -> Some dog
-    | Hungry dog -> Some dog
-    | Tired dog -> Some dog
-    | Asleep dog -> Some dog
 
 module DogEvent =
     let serialize event =
@@ -40,174 +43,141 @@ module DogEvent =
 module Apply =
     let success state = state |> Ok
     let fail message = message |> DogError.validation
-    let born dog = function
-        | NoDog -> Hungry dog |> success
+    let born _ = function
+        | NoDog -> Hungry |> success
         | _ -> "dog cannot be born; dog already exists" |> fail
-    let renamed name = function
-        | NoDog -> "dog cannot be renamed; dog does not exist" |> fail
-        | Bored dog -> { dog with Name = name } |> Bored |> success
-        | Hungry dog -> { dog with Name = name } |> Hungry |> success
-        | Tired dog -> { dog with Name = name } |> Tired |> success
-        | Asleep dog -> { dog with Name = name } |> Asleep |> success
-    let ate calledName = function
+    let ate = function
         | NoDog -> "dog cannot eat; dog does not exist" |> fail
-        | DogState dog ->
-            if dog.Name = calledName
-            then Bored dog |> success
-            else "dog cannot eat; incorrect name" |> fail
+        | Hungry -> Bored |> success
         | state -> sprintf "dog cannot eat in state:\n%A" state |> fail
     let slept = function
         | NoDog -> "dog cannot sleep; dog does not exist" |> fail
-        | Tired dog -> Hungry dog |> success
+        | Tired -> Asleep |> success
         | state -> sprintf "dog cannot sleep in state: \n%A" state |> fail
     let woke = function
         | NoDog -> "dog cannot wake; dog does not exist" |> fail
-        | Asleep dog -> Bored dog |> success
+        | Asleep -> Hungry |> success
         | state -> sprintf "dog cannot wake in state: \n%A" state |> fail
     let played = function
         | NoDog -> "dog cannot play; dog does not exist" |> fail
-        | Bored dog -> Tired dog |> success
+        | Bored -> Tired |> success
         | state -> sprintf "dog cannot play in state: \n%A" state |> fail
 
 
-module Event =
+module DomainEvent =
+    let createEffectiveOrder order =
+        order
+        |> EffectiveOrder.create
+        |> Result.mapError DogError.Validation
     let getEffectiveOrder = function
-        | DogEvent.Born _ -> 1
-        | DogEvent.Renamed _ -> 2
-        | DogEvent.Ate _ -> 3
-        | DogEvent.Slept -> 4
-        | DogEvent.Woke -> 5
-        | DogEvent.Played -> 6
+        | DogEvent.Born _ -> createEffectiveOrder 1
+        | DogEvent.Ate -> createEffectiveOrder 2
+        | DogEvent.Slept -> createEffectiveOrder 3
+        | DogEvent.Woke -> createEffectiveOrder 4
+        | DogEvent.Played -> createEffectiveOrder 5
     let createEventType eventType =
         eventType
-        |> EventType.create
+        |> DomainEventType.create
         |> Result.mapError DogError.Validation
     let getEventType = function
         | DogEvent.Born _ -> createEventType "Born"
-        | DogEvent.Renamed _ -> createEventType "Renamed"
-        | DogEvent.Ate _ -> createEventType "Ate"
-        | DogEvent.Slept _ -> createEventType "Slept"
-        | DogEvent.Woke _ -> createEventType "Woke"
-        | DogEvent.Played _ -> createEventType "Played"
-    let fromDomain source effectiveDate =
+        | DogEvent.Ate -> createEventType "Ate"
+        | DogEvent.Slept -> createEventType "Slept"
+        | DogEvent.Woke -> createEventType "Woke"
+        | DogEvent.Played -> createEventType "Played"
+    let fromDogEvent source effectiveDate =
         fun dogEvent ->
             result {
-                let! effectiveOrder = 
-                    getEffectiveOrder dogEvent
-                    |> EffectiveOrder.create
-                    |> Result.mapError DogError.Validation
-                let eventMeta = EventMeta.create effectiveDate effectiveOrder source
+                let! effectiveOrder = getEffectiveOrder dogEvent 
+                let eventMeta = 
+                    (effectiveDate, effectiveOrder, source)
+                    |||> DomainEventMeta.create
                 let! eventType = getEventType dogEvent
                 return 
-                    { Event.Type = eventType
+                    { DomainEvent.Type = eventType
                       Data = dogEvent
                       Meta = eventMeta }
             }
-    let serialize (event:Event<DogEvent>) =
-        result {
-            let! eventMeta = 
-                EventMeta.serialize event.Meta
-                |> Result.mapError DogError.IO
-            let! eventData = DogEvent.serialize event.Data
-            return
-                { Type = event.Type
-                  Data = eventData
-                  Meta = eventMeta }
-        }
-    let deserialize (event:SerializedRecordedEvent) =
-        result {
-            let! eventMeta = 
-                EventMeta.deserialize event.Meta
-                |> Result.mapError DogError.IO
-            let! eventData = DogEvent.deserialize event.Data
-            return
-                { Id = event.Id
-                  CreatedDate = event.CreatedDate
-                  Type = event.Type
-                  Data = eventData 
-                  Meta = eventMeta }
-        }
 
 module Execute =
-    let success effectiveDate event = 
-        asyncResult {
-            let! source = 
-                "test" 
-                |> Source.create 
-                |> Result.mapError DogError.Validation
-                |> AsyncResult.ofResult
-            return!
-                event
-                |> Event.fromDomain source effectiveDate
-                |> Result.map List.singleton
-                |> AsyncResult.ofResult
-        }
+    let success source effectiveDate event = 
+        event
+        |> DomainEvent.fromDogEvent source effectiveDate
+        |> Result.map List.singleton
     let fail message =
         message
         |> DogError.Validation
-        |> AsyncResult.ofError
-    let create effectiveDate dog = function
+        |> Error
+    let create source effectiveDate dog = function
         | NoDog ->
-            DogEvent.Born dog |> success effectiveDate
+            DogEvent.Born dog 
+            |> success source effectiveDate
         | _ ->
-            "cannot create dog; dog already exists" |> fail
-    let changeName effectiveDate newName = function
+            "cannot create dog; dog already exists" 
+            |> fail
+    let eat source effectiveDate = function
         | NoDog ->
-            "cannot change name; dog does not exist" |> fail
+            "dog cannot eat; dog does not exist" 
+            |> fail
+        | Hungry ->
+            DogEvent.Ate 
+            |> success source effectiveDate
         | _ ->
-            DogEvent.Renamed newName |> success effectiveDate
-    let callToEat effectiveDate calledName = function
+            "dog cannot eat; dog is not hungry" 
+            |> fail
+    let sleep source effectiveDate = function
         | NoDog ->
-            "dog cannot eat; dog does not exist" |> fail
-        | Hungry { Name = currentName } ->
-            if currentName = calledName
-            then DogEvent.Ate calledName |> success effectiveDate
-            else sprintf "dog won't come to eat; current name: %A, called name %A" currentName calledName |> fail
-        | _ ->
-            "dog cannot eat; dog is not hungry" |> fail
-    let sleep effectiveDate = function
-        | NoDog ->
-            "dog cannot sleep; dog does not exist" |> fail
+            "dog cannot sleep; dog does not exist" 
+            |> fail
         | Tired _ ->
-            DogEvent.Slept |> success effectiveDate
+            DogEvent.Slept 
+            |> success source effectiveDate
         | _ ->
-            "dog cannot sleep; dog is not tired" |> fail
-    let wake effectiveDate = function
+            "dog cannot sleep; dog is not tired" 
+            |> fail
+    let wake source effectiveDate = function
         | NoDog ->
-            "dog cannot wake up; dog does not exist" |> fail
+            "dog cannot wake up; dog does not exist" 
+            |> fail
         | Asleep _ ->
-            DogEvent.Woke |> success effectiveDate
+            DogEvent.Woke |> success source effectiveDate
         | _ ->
             "dog cannot wake up; dog is not asleep" |> fail
-    let play effectiveDate = function
+    let play source effectiveDate = function
         | NoDog ->
             "dog cannot play; dog does not exist" |> fail
         | Bored _ ->
-            DogEvent.Played |> success effectiveDate
+            DogEvent.Played |> success source effectiveDate
         | _ ->
             "dog cannot play; dog is not bored" |> fail
 
 let execute : Execute =
-    fun state -> function
-        | DogCommand.Create (effectiveDate, dog) -> Execute.create effectiveDate dog state
-        | DogCommand.Rename (effectiveDate, newName) -> Execute.changeName effectiveDate newName state
-        | DogCommand.CallToEat (effectiveDate, calledName) -> Execute.callToEat effectiveDate calledName state
-        | DogCommand.Sleep effectiveDate -> Execute.sleep effectiveDate state
-        | DogCommand.Wake effectiveDate -> Execute.wake effectiveDate state
-        | DogCommand.Play effectiveDate -> Execute.play effectiveDate state
-
+    fun state command ->
+        let { DomainCommand.Source = source 
+              EffectiveDate = effectiveDate 
+              Data = commandData } = command
+        match commandData with
+        | DogCommand.Create dog -> 
+            Execute.create source effectiveDate dog state
+        | DogCommand.Eat ->
+            Execute.eat source effectiveDate state
+        | DogCommand.Sleep ->
+            Execute.sleep source effectiveDate state
+        | DogCommand.Wake ->
+            Execute.wake source effectiveDate state
+        | DogCommand.Play ->
+            Execute.play source effectiveDate state
 let apply : Apply =
     fun state -> function
-        | { Data = DogEvent.Born dog } -> Apply.born dog state
-        | { Data = DogEvent.Renamed name } -> Apply.renamed name state
-        | { Data = DogEvent.Ate name } -> Apply.ate name state
-        | { Data = DogEvent.Slept } -> Apply.slept state
-        | { Data = DogEvent.Woke } -> Apply.woke state
-        | { Data = DogEvent.Played } -> Apply.played state
+        | DogEvent.Born dog -> Apply.born dog state
+        | DogEvent.Ate -> Apply.ate state
+        | DogEvent.Slept -> Apply.slept state
+        | DogEvent.Woke -> Apply.woke state
+        | DogEvent.Played -> Apply.played state
 
 let serializer =
-    { serialize = Event.serialize
-      deserialize = Event.deserialize }
+    { serialize = DogEvent.serialize
+      deserialize = DogEvent.deserialize }
 
 let aggregate =
     { zero = NoDog
@@ -219,8 +189,15 @@ let repoResult =
         let! config = EventStoreConfig.load () |> Result.mapError DogError.IO
         let store = eventStore config.Uri
         let! entityType = EntityType.create "dog" |> Result.mapError DogError.Validation
-        let mapError (EventStoreError e) = DogError.IO e
-        let repo = Repository.create store mapError serializer entityType
+        let mapError err = DogError.Validation err
+        let mapStoreError (EventStoreError err) = DogError.IO err
+        let repo = 
+            Repository.create 
+                store 
+                mapError 
+                mapStoreError 
+                serializer 
+                entityType
         return repo
     }
 

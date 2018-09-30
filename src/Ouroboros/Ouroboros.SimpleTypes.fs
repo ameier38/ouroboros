@@ -1,5 +1,7 @@
 namespace Ouroboros
 
+open Ouroboros.Constants
+
 open System
 open SimpleType
 
@@ -61,11 +63,19 @@ module EventId =
     let value (EventId guid) = guid
     let create guid = EventId guid
 
-/// Friendly name for the type of event (e.g., Loan Originated)
-type EventType = private EventType of String50
-module EventType =
-    let value (EventType eventType) = String50.value eventType
-    let create eventType = String50.create eventType |> Result.map EventType
+// Number of the event in the stream
+type EventNumber = private EventNumber of PositiveLong
+module EventNumber =
+    let value (EventNumber number) = number |> PositiveLong.value
+    let create number = PositiveLong.create number |> Result.map EventNumber
+
+/// Friendly name for the type of event (e.g., Dog Played)
+type DomainEventType = private DomainEventType of string
+module DomainEventType =
+    let value (DomainEventType eventType) = eventType
+    let create = function 
+        | DeletedEventTypeValue -> sprintf "%s is a reserved EventType" DeletedEventTypeValue |> Error
+        | eventType -> ConstrainedType.createString DomainEventType 50 eventType
 
 /// Date at which event is effective in the domain
 type EffectiveDate = EffectiveDate of DateTime
@@ -79,7 +89,13 @@ module EffectiveOrder =
     let create order = PositiveInt.create order |> Result.map EffectiveOrder
 
 /// Source which caused the creation of the event
-type Source = Source of String50
+type Source = private Source of String50
 module Source =
     let value (Source source) = String50.value source
     let create source = String50.create source |> Result.map Source
+
+// Reason for why the event is deleted
+type DeletionReason = private DeletionReason of String50
+module DeletionReason =
+    let value (DeletionReason reason) = reason |> String50.value
+    let create reason = reason |> String50.create |> Result.map DeletionReason
