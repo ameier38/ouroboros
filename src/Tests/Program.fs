@@ -118,10 +118,12 @@ let testBenji =
 
         asyncResult {
             let! repo = repoResult |> AsyncResult.ofResult
-            let! recordedEvents = repo.load benjiId
+            let! recordedEvents = repo.loadAll benjiId
             let actualEventTypes =
                 recordedEvents
-                |> List.map (fun e -> e.Type |> DomainEventType.value)
+                |> List.map (function
+                    | RecordedDomainEvent e -> e.Type |> DomainEventType.value
+                    | RecordedDeletedEvent _ -> DeletedEventTypeValue)
             return Expect.equal actualEventTypes expectedBenjiEventTypes "The event types should equal"
         } 
         |> Async.RunSynchronously
@@ -139,7 +141,7 @@ let testBenji =
     }
 
 let testMinnie =
-    ftest "test Minnie" {
+    test "test Minnie" {
         let executeCommand' = executeCommand minnieId
         result {
             let! minnieCommands' = minnieCommands 
@@ -155,10 +157,12 @@ let testMinnie =
 
         asyncResult {
             let! repo = repoResult |> AsyncResult.ofResult
-            let! recordedEvents = repo.load minnieId
+            let! recordedEvents = repo.loadAll minnieId
             let actualEventTypes =
                 recordedEvents
-                |> List.map (fun e -> e.Type |> DomainEventType.value)
+                |> List.map (function
+                    | RecordedDomainEvent e -> e.Type |> DomainEventType.value
+                    | RecordedDeletedEvent _ -> DeletedEventTypeValue)
             return Expect.equal actualEventTypes expectedMinnieEventTypes "The event types should equal"
         } 
         |> Async.RunSynchronously
@@ -191,15 +195,17 @@ let testRaggles =
         }
         |> Result.bimap onSuccess onError
         |> Expect.isMatch 
-        <| "Validation dog cannot eat; dog is not hungry"
+        <| "Validation \"dog cannot play; dog is not bored\""
         <| "should throw error"
 
         asyncResult {
             let! repo = repoResult |> AsyncResult.ofResult
-            let! recordedEvents = repo.load ragglesId
+            let! recordedEvents = repo.loadAll ragglesId
             let actualEventTypes =
                 recordedEvents
-                |> List.map (fun e -> e.Type |> DomainEventType.value)
+                |> List.map (function
+                    | RecordedDomainEvent e -> e.Type |> DomainEventType.value
+                    | RecordedDeletedEvent _ -> DeletedEventTypeValue)
             return Expect.equal actualEventTypes expectedRagglesEventTypes "The event types should equal"
         } 
         |> Async.RunSynchronously
@@ -209,7 +215,7 @@ let testRaggles =
         asyncResult {
             let! repo = repoResult |> AsyncResult.ofResult
             let! mealCount = Projection.mealCount repo ragglesId
-            Expect.equal mealCount 1 "meal count shoud equal one"
+            Expect.equal mealCount 0 "meal count shoud equal zero"
         }
         |> Async.RunSynchronously
         |> Expect.isOk

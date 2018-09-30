@@ -52,11 +52,11 @@ module Apply =
         | state -> sprintf "dog cannot eat in state:\n%A" state |> fail
     let slept = function
         | NoDog -> "dog cannot sleep; dog does not exist" |> fail
-        | Tired -> Hungry |> success
+        | Tired -> Asleep |> success
         | state -> sprintf "dog cannot sleep in state: \n%A" state |> fail
     let woke = function
         | NoDog -> "dog cannot wake; dog does not exist" |> fail
-        | Asleep -> Bored |> success
+        | Asleep -> Hungry |> success
         | state -> sprintf "dog cannot wake in state: \n%A" state |> fail
     let played = function
         | NoDog -> "dog cannot play; dog does not exist" |> fail

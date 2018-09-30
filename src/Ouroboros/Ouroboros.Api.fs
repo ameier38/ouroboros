@@ -222,13 +222,14 @@ module Repository =
                         RecordedEvent.extractDeletedEvent
                 let deletedEventNumbers =
                     deletedEvents
-                    |> List.map (fun e -> e.EventNumber)
-                return
+                    |> List.map (fun e -> e.Data.EventNumber)
+                let filteredDomainEvents =
                     domainEvents
                     |> List.filter (fun e ->
                         deletedEventNumbers 
                         |> List.contains e.EventNumber 
                         |> not)
+                return filteredDomainEvents
             }
         let commit entityId expectedVersion events = 
             asyncResult {
@@ -267,12 +268,8 @@ module Handler =
             (domainCommand:DomainCommand<'DomainCommand>) =
             result {
                 let! (allDomainEvents, newDomainEvents) = eventAccumulator
-                printfn "getting state"
                 let! state = getState domainCommand.EffectiveDate allDomainEvents
-                printfn "got state %A" state
-                printfn "executing command %A" domainCommand
                 let! generatedDomainEvents = aggregate.execute state domainCommand
-                printfn "generated events %A" generatedDomainEvents
                 let newAllDomainEvents = generatedDomainEvents @ allDomainEvents
                 let newNewDomainEvents = generatedDomainEvents @ newDomainEvents
                 return (newAllDomainEvents, newNewDomainEvents)
@@ -281,9 +278,7 @@ module Handler =
             (entityId:EntityId) 
             (commands:Command<'DomainCommand> list) =
             asyncResult {
-                printfn "handling commands\n%A" commands
                 let! domainEvents = repo.load entityId
-                printfn "domainEvents\n%A" domainEvents
                 let (domainCommands, deleteCommands) =
                     commands
                     |> List.divide 
@@ -302,7 +297,6 @@ module Handler =
                         |> List.contains e.EventNumber 
                         |> not)
                     |> List.map RecordedDomainEvent.toDomainEvent
-                printfn "filteredDomainEvents\n%A" filteredDomainEvents
                 let! newDomainEvents = 
                     domainCommands
                     |> List.fold decide (Ok (filteredDomainEvents, []))
