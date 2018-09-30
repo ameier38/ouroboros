@@ -34,7 +34,7 @@ jobs:
           name: Push nuget package
           command: |
             cd ./src/Ouroboros/bin/Release
-            dotnet nuget push Ouroboros.1.0.5.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json
+            dotnet nuget push Ouroboros.2.0.0.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json
 
 workflows:
    version: 2

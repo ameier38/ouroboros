@@ -34,3 +34,18 @@ Below are a list of resources to get started with event sourcing.
 - [FsUno](https://github.com/thinkbeforecoding/FsUno/blob/master/FsUno/Game.fs)
 - [Greg Young video on DDD](https://youtu.be/LDW0QWie21s)
 - [12 Things You Should Know About Event Sourcing](http://blog.leifbattermann.de/2017/04/21/12-things-you-should-know-about-event-sourcing/)
+
+## Versions
+### 2.0.0
+Added functionality to 'delete' an event from a stream
+which effectively ignores these events when loaded from
+the repository and, therefore, we do not apply them when
+reconstituting the state. The reason for this is because
+in the real world we may accidentally run commands
+which produce valid events, but were genuine mistakes.
+Having a 'delete event' command which records the deletion
+but allows us to undo a command is easier to correct these errors.
+
+### 1.0.0
+Added boilerplate functions and type to work with event sourced
+systems in F#. Added EventStore store.
