@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <RootNamespace>Ouroboros</RootNamespace>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\paket-files\ameier38\fsharp-common\Result.fs">

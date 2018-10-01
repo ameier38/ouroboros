@@ -129,7 +129,7 @@ type Apply<'DomainState, 'DomainEvent, 'DomainError> =
 type Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> =
     'DomainState
      -> DomainCommand<'DomainCommand>
-     -> Result<DomainEvent<'DomainEvent> list, 'DomainError>
+     -> AsyncResult<DomainEvent<'DomainEvent> list, 'DomainError>
 
 type Handle<'DomainCommand, 'DomainEvent, 'DomainError> =
     EntityId
