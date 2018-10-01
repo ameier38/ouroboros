@@ -14,7 +14,7 @@ type Apply =
 type Execute =
     DogState
      -> DomainCommand<DogCommand>
-     -> Result<DomainEvent<DogEvent> list, DogError>
+     -> AsyncResult<DomainEvent<DogEvent> list, DogError>
 
 module Dog =
     let create name breed =
@@ -104,10 +104,11 @@ module Execute =
         event
         |> DomainEvent.fromDogEvent source effectiveDate
         |> Result.map List.singleton
+        |> AsyncResult.ofResult
     let fail message =
         message
         |> DogError.Validation
-        |> Error
+        |> AsyncResult.ofError
     let create source effectiveDate dog = function
         | NoDog ->
             DogEvent.Born dog 

@@ -266,9 +266,9 @@ module Handler =
         let decide 
             eventAccumulator
             (domainCommand:DomainCommand<'DomainCommand>) =
-            result {
+            asyncResult {
                 let! (allDomainEvents, newDomainEvents) = eventAccumulator
-                let! state = getState domainCommand.EffectiveDate allDomainEvents
+                let! state = getState domainCommand.EffectiveDate allDomainEvents |> AsyncResult.ofResult
                 let! generatedDomainEvents = aggregate.execute state domainCommand
                 let newAllDomainEvents = generatedDomainEvents @ allDomainEvents
                 let newNewDomainEvents = generatedDomainEvents @ newDomainEvents
@@ -297,12 +297,13 @@ module Handler =
                         |> List.contains e.EventNumber 
                         |> not)
                     |> List.map RecordedDomainEvent.toDomainEvent
+                let initialState =
+                    (filteredDomainEvents, [])
+                    |> AsyncResult.ofSuccess
                 let! newDomainEvents = 
                     domainCommands
-                    |> List.fold decide (Ok (filteredDomainEvents, []))
-                    |> Result.map snd
-                    |> Result.map (List.map DomainEvent)
-                    |> AsyncResult.ofResult
+                    |> List.fold decide initialState
+                    |> AsyncResult.map (snd >> List.map DomainEvent)
                 let newEvents = newDomainEvents @ newDeletedEvents
                 // TODO: change Any to the count of events
                 do! repo.commit entityId Any newEvents
