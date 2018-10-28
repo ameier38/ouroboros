@@ -1,7 +1,7 @@
 [![CircleCI](https://circleci.com/gh/ameier38/ouroboros/tree/develop.svg?style=svg)](https://circleci.com/gh/ameier38/ouroboros/tree/develop)
 
-# fsharp-event-sourcing
-F# functions for building event sourced applications
+# Ouroboros
+F# functions and types to help with building event sourced applications.
 
 ## Usage
 1) To use Ouroboros in your own project, first add it to your `paket.dependencies` file:
@@ -25,6 +25,72 @@ F# functions for building event sourced applications
 
 4) See [Dog.Implementation.fs](./src/Tests/Dog.Implementation.fs) for an example on how to incorporate into your project.
 
+## Development
+
+### Prerequisites:
+
+- Docker and Docker Compose: See [andrewcmeier.com/win-dev](https://andrewcmeier.com/win-dev#docker-and-docker-compose)
+for information on how to install on Windows.
+- kubectl: See [andrewcmeier.com/win-dev](https://andrewcmeier.com/win-dev#kubectl)
+for information on how to install on Windows.
+
+### Structure
+```
+src
+├── Ouroboros: main library
+└── Tests: tests
+```
+
+### Testing
+Start a local Event Store instance.
+```
+> docker-compose up -d eventstore
+```
+
+Navigate to the `Tests` directory and run the console application.
+```
+> cd src/Tests
+> dotnet run
+```
+
+### Advanced Testing
+First, spin up a local Kubernetes cluster. See instructions for 
+creating a local Kubernetes cluster [here](https://andrewcmeier.com/win-dev#kubernetes).
+
+Next, install Helm. See instructions for installing Helm 
+on [their website](https://docs.helm.sh/using_helm/#quickstart).
+
+Next, install Event Store.
+```
+> helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
+> helm install incubator/eventstore
+```
+
+Next, install OpenFaas. You can find instructions 
+[here](https://github.com/openfaas/faas-netes/tree/master/chart/openfaas).
+
+Then, change the `image` value in the `stack.yml` file to your own Docker registry.
+> If it is a private image you can use the [`create-registry-secret` script](scripts/create-registry-secret.sh)
+to create a Docker registry secret.
+
+At the root of this repository, run the following to build and push the test images.
+```
+> faas build
+> faas push
+```
+
+In another shell, forward the port of the OpenFaas gateway to a local port.
+```
+> kubectl port-forward --namespace=openfaas svc/gateway 8080
+```
+
+Back in the original shell, deploy the test service.
+```
+> faas deploy
+```
+
+
+
 ## Resources
 Below are a list of resources to get started with event sourcing.
 - [Domain Modeling Made Functional](https://pragprog.com/book/swdddf/domain-modeling-made-functional)
@@ -34,8 +100,12 @@ Below are a list of resources to get started with event sourcing.
 - [FsUno](https://github.com/thinkbeforecoding/FsUno/blob/master/FsUno/Game.fs)
 - [Greg Young video on DDD](https://youtu.be/LDW0QWie21s)
 - [12 Things You Should Know About Event Sourcing](http://blog.leifbattermann.de/2017/04/21/12-things-you-should-know-about-event-sourcing/)
+- [Event Store on Kubernetes on Google Cloud](https://blog.2mas.xyz/setting-up-event-store-with-kubernetes-on-google-cloud/)
+- [Event Store on Kubernetes on AWS](http://www.dinuzzo.co.uk/2018/08/13/set-up-an-eventstore-cluster-on-kubernetes/)
 
-## Versions
+<details>
+    <summary>Versions</summary>
+
 ### 2.0.0
 Added functionality to 'delete' an event from a stream
 which effectively ignores these events when loaded from
@@ -49,3 +119,5 @@ but allows us to undo a command is easier to correct these errors.
 ### 1.0.0
 Added boilerplate functions and type to work with event sourced
 systems in F#. Added EventStore store.
+
+</details>

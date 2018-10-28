@@ -1,4 +1,4 @@
-namespace Test.Dog
+namespace Dog
 
 open SimpleType
 

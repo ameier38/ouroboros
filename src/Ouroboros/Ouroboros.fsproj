@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
@@ -6,6 +6,10 @@
     <Version>2.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\..\paket-files\ameier38\fsharp-common\DotEnv.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/DotEnv.fs</Link>
+    </Compile>
     <Compile Include="..\..\paket-files\ameier38\fsharp-common\Result.fs">
       <Paket>True</Paket>
       <Link>paket-files/Result.fs</Link>

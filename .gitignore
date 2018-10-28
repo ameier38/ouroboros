@@ -10,3 +10,6 @@
 packages
 paket-files
 temp
+
+template
+build

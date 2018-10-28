@@ -1,9 +1,36 @@
 module Ouroboros.EventStore
 
+open DotEnv
 open System
 open SimpleType
 open EventStore.ClientAPI
 open Ouroboros.Api
+
+type EventStoreConfig =
+    { Uri: Uri }
+module EventStoreConfig =
+    let createUri protocol host port user password =
+        sprintf "%s://%s:%s@%s:%i"
+        <| protocol
+        <| user
+        <| password
+        <| host
+        <| port
+        |> Uri
+
+    let load () =
+        result {
+            let! protocol = Some "tcp" |> getEnv "EVENTSTORE_PROTOCOL"
+            let! host = Some "localhost" |> getEnv "EVENTSTORE_HOST"
+            let! port = Some "1113" |> getEnv "EVENTSTORE_PORT"
+            let! user = Some "admin" |> getEnv "EVENTSTORE_USER"
+            let! password = Some "changeit" |> getEnv "EVENTSTORE_PASSWORD"
+            let port' = port |> int
+            let uri = createUri protocol host port' user password
+            let config =
+                { Uri = uri }
+            return config
+        }
 
 module SerializedRecordedEvent =
     let fromResolvedEvent (resolvedEvent:ResolvedEvent) = 

@@ -1,4 +1,4 @@
-namespace Test.Dog
+namespace Dog
 
 open Vertigo.Json
 
@@ -9,8 +9,11 @@ module DogDto =
     let serialize (dto:DogDto) =
         try Json.serializeToBytes dto |> Ok
         with ex -> sprintf "could not serialize DogDto %A\n%A" dto ex |> DogError.IO |> Error
-    let deserialize json =
-        try Json.deserializeFromBytes<DogDto> json |> Ok
+    let deserializeBytes bytes =
+        try Json.deserializeFromBytes<DogDto> bytes |> Ok
+        with ex -> sprintf "could not deserialize DogDto %A\n%A" bytes ex |> DogError.IO |> Error
+    let deserializeJson json =
+        try Json.deserialize<DogDto> json |> Ok
         with ex -> sprintf "could not deserialize DogDto %A\n%A" json ex |> DogError.IO |> Error
     let fromDomain (dog:Dog) =
         { name = Name.value dog.Name
@@ -37,10 +40,10 @@ module DogEventDto =
             sprintf "could not serialize DogEventDto %A\n%A" dto ex 
             |> DogError.IO 
             |> Error
-    let deserialize json =
-        try Json.deserializeFromBytes<DogEventDto> json |> Ok
+    let deserializeBytes bytes =
+        try Json.deserializeFromBytes<DogEventDto> bytes |> Ok
         with ex -> 
-            sprintf "could not deserialize DogEventDto %A\n%A" json ex 
+            sprintf "could not deserialize DogEventDto %A\n%A" bytes ex 
             |> DogError.IO 
             |> Error
     let fromDomain = function
@@ -70,12 +73,6 @@ type DogCommandDto =
     | Wake
     | Play
 module DogCommandDto =
-    let deserialize json =
-        try Json.deserializeFromBytes<DogCommandDto> json |> Ok
-        with ex -> 
-            sprintf "could not deserialize DogCommandDto %A\n%A" json ex 
-            |> DogError.IO 
-            |> Error
     let fromDomain = function
         | DogCommand.Create dog -> 
             dog

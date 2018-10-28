@@ -38,4 +38,4 @@ FROM microsoft/dotnet:2.1-runtime
 WORKDIR /ouroboros
 COPY --from=builder /ouroboros/src/Tests/out .
 
-ENTRYPOINT ["dotnet", "Tests.dll"]
+CMD ["dotnet", "Tests.dll"]

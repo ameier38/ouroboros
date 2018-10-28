@@ -8,6 +8,7 @@ services:
   test:
     build:
       context: .
+    image: ameier38/ouroboros-test:latest
     environment:
       - EVENTSTORE_HOST=eventstore
       - EVENTSTORE_PORT=1113

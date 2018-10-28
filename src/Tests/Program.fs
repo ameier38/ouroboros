@@ -3,8 +3,8 @@ open Expecto
 open Ouroboros
 open Ouroboros.Constants
 open Ouroboros.Api
-open Test.Dog
-open Test.Dog.Implementation
+open Dog
+open Dog.Implementation
 
 let benjiId = "2d94680171c64c86b136169551769831" |> Guid.Parse |> EntityId
 

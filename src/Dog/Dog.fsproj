@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\paket-files\ameier38\fsharp-common\Result.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/Result.fs</Link>
+    </Compile>
+    <Compile Include="..\..\paket-files\ameier38\fsharp-common\SimpleType.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/SimpleType.fs</Link>
+    </Compile>
+    <Compile Include="..\..\paket-files\ameier38\fsharp-common\DotEnv.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/DotEnv.fs</Link>
+    </Compile>
+    <Compile Include="Dog.SimpleTypes.fs" />
+    <Compile Include="Dog.PublicTypes.fs" />
+    <Compile Include="Dog.Dto.fs" />
+    <Compile Include="Dog.Implementation.fs" />
+    <Compile Include="Dog.Projection.fs" />
+    <Compile Include="Dog.Handler.fs" />
+    <Compile Include="Dog.Index.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ouroboros\Ouroboros.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

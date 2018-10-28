@@ -1,10 +1,9 @@
-module internal Test.Dog.Implementation
+module Dog.Implementation
 
 open Ouroboros
 open Ouroboros.Api
 open Ouroboros.EventStore
-open Test.Dog
-open Test.Config
+open Dog
 
 type Apply =
     DogState
@@ -35,9 +34,9 @@ module DogEvent =
         event
         |> DogEventDto.fromDomain
         |> DogEventDto.serialize
-    let deserialize json =
-        json
-        |> DogEventDto.deserialize
+    let deserialize bytes =
+        bytes
+        |> DogEventDto.deserializeBytes
         |> Result.bind DogEventDto.toDomain
 
 module Apply =

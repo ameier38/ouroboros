@@ -1,5 +1,4 @@
 File: Result.fs
 File: SimpleType.fs
 File: DotEnv.fs
-EventStore.Client
 Vertigo.Json
