@@ -23,7 +23,7 @@
     <Compile Include="Dog.Implementation.fs" />
     <Compile Include="Dog.Projection.fs" />
     <Compile Include="Dog.Handler.fs" />
-    <Compile Include="Dog.Index.fs" />
+    <Compile Include="Index.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Ouroboros\Ouroboros.fsproj" />

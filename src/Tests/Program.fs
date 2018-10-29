@@ -94,11 +94,22 @@ let expectedRagglesEventTypes =
       "Ate"
       "Deleted" ]
 
+let executeCommand dogId =
+    fun command ->
+        asyncResult {
+            let! commandHandler = commandHandlerResult |> AsyncResult.ofResult
+            let handle = commandHandler.handle dogId
+            let commandList = command |> List.singleton
+            let! newEvents = handle commandList
+            do! AsyncResult.sleep 500
+            return newEvents
+        }
+
 let testBenji =
     test "test Benji" {
-        let executeCommand' = executeCommand benjiId
         result {
             let! benjiCommands' = benjiCommands
+            let executeCommand' = executeCommand benjiId
             return! 
                 benjiCommands'
                 |> List.map executeCommand'
@@ -134,10 +145,10 @@ let testBenji =
     }
 
 let testMinnie =
-    test "test Minnie" {
-        let executeCommand' = executeCommand minnieId
+    ftest "test Minnie" {
         result {
             let! minnieCommands' = minnieCommands 
+            let executeCommand' = executeCommand minnieId
             return!
                 minnieCommands'
                 |> List.map executeCommand'
@@ -176,9 +187,9 @@ let testRaggles =
     test "test Raggles" {
         let onSuccess _ = "Success!"
         let onError err = sprintf "%A" err
-        let executeCommand' = executeCommand ragglesId
         result {
             let! ragglesCommands' = ragglesCommands 
+            let executeCommand' = executeCommand ragglesId
             return!
                 ragglesCommands'
                 |> List.map executeCommand'

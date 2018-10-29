@@ -14,6 +14,10 @@ COPY paket.lock .
 COPY src/Ouroboros/Ouroboros.fsproj src/Ouroboros/
 COPY src/Ouroboros/paket.references src/Ouroboros/
 
+# copy Dog
+COPY src/Dog/Dog.fsproj src/Dog/
+COPY src/Dog/paket.references src/Dog/
+
 # copy Tests
 COPY src/Tests/Tests.fsproj src/Tests/
 COPY src/Tests/paket.references src/Tests/

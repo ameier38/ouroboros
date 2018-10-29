@@ -195,7 +195,7 @@ module ExpectedVersion =
         match nEvents with
         | n when n = 0 -> NoStream |> Ok
         | n -> 
-            n 
+            n - 1
             |> int64
             |> PositiveLong.create
             |> Result.map ExpectedVersion.Specific

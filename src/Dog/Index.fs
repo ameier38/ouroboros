@@ -21,16 +21,17 @@ let main argv =
         printfn "Error :(\n%A" err
         1
     
-    let input = readInput buffer
-    let source = "unknown" |> getEnv "Http_X_Forwarded_By"
-    let method = None |> getEnv "Http_Method"
-    let path = None |> getEnv "Http_Path"
-
-    match method with
-    | m when m = "POST" -> 
-        handlePost path input
-        |> Async.RunSyncronously
-        |> Result.bimap onSuccess onError
-    | _ ->
-        printfn "method %s not implemented" method
-        1
+    result {
+        let input = readInput buffer
+        let! method = None |> getEnv "Http_Method"
+        let! path = None |> getEnv "Http_Path"
+        return!
+            match method with
+            | m when m = "POST" -> 
+                handlePost path input
+                |> Async.RunSynchronously
+                |> Ok
+            | _ ->
+                sprintf "method %s not implemented" method
+                |> Error
+    } |> Result.bimap onSuccess onError
