@@ -202,8 +202,14 @@ let repoResult =
         return repo
     }
 
-let handlerResult =
+let queryHandlerResult =
     result {
         let! repo = repoResult
-        return Handler.create repo aggregate
+        return QueryHandler.create aggregate repo
+    }
+
+let commandHandlerResult =
+    result {
+        let! repo = repoResult
+        return CommandHandler.create DogError.Validation aggregate repo
     }

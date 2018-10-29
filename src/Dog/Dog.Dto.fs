@@ -154,4 +154,4 @@ module GetInputDto =
             |> DogError.IO 
             |> Error
     let toDomain dto =
-        (dto.dogId |> EntityId, dto.asOfDate |> EffectiveDate)
+        (dto.dogId |> EntityId, dto.asOfDate |> AsOfDate)

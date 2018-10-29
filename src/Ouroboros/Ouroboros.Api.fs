@@ -199,7 +199,6 @@ module ExpectedVersion =
             |> int64
             |> PositiveLong.create
             |> Result.map ExpectedVersion.Specific
-            |> Result.mapError DogError.Validation
 
 module Repository =
     let create
@@ -262,8 +261,8 @@ module Repository =
 
 module QueryHandler =
     let create
-        (repo:Repository<'DomainEvent,'DomainError>) 
-        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError>) =
+        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError>)
+        (repo:Repository<'DomainEvent,'DomainError>) =
         let apply = Result.bind2 aggregate.apply
         let zero = aggregate.zero |> Ok
         let replay
@@ -298,9 +297,10 @@ module QueryHandler =
 
 module CommandHandler =
     let create<'DomainState,'DomainCommand,'DomainEvent,'DomainError> 
-        (repo:Repository<'DomainEvent,'DomainError>) 
-        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError>) =
-        let queryHandler = QueryHandler.create repo aggregate
+        (mapError:string -> 'DomainError)
+        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError>)
+        (repo:Repository<'DomainEvent,'DomainError>) =
+        let queryHandler = QueryHandler.create aggregate repo
         let reconstitute
             (effectiveDate:EffectiveDate) 
             (events:DomainEvent<'DomainEvent> list) =
@@ -328,6 +328,7 @@ module CommandHandler =
                     recordedDomainEvents 
                     |> List.length 
                     |> ExpectedVersion.create
+                    |> Result.mapError mapError
                     |> AsyncResult.ofResult
                 let (domainCommands, deleteCommands) =
                     commands

@@ -2,9 +2,6 @@ module Dog.Handler
 
 open Dog
 open Dog.Implementation
-open Ouroboros
-open Ouroboros.Api
-open System
 open Vertigo.Json
 
 let (|Matches|_|) pattern value =
@@ -21,30 +18,32 @@ let (|OtherCommandPath|_|) = function
 
 let executeCommand dogId domainCommand =
     asyncResult {
-        let! handler = handlerResult |> AsyncResult.ofResult
-        let handle = handler.handle dogId
+        let! commandHandler = commandHandlerResult |> AsyncResult.ofResult
+        let handle = commandHandler.handle dogId
         return! handle [ domainCommand ]
-    }
-
-let reconstituteState dogId effectiveDate =
-    asyncResult {
-        let! handler = handlerResult |> AsyncResult.ofResult
-        let reconstitute = handler.reconstitute dogId
-        return! reconstitute effectiveDate
     }
 
 let handlePost path input =
     match path with
     | Matches "get" ->
         asyncResult {
+            let! queryHandler = 
+                queryHandlerResult 
+                |> AsyncResult.ofResult
             let! dto =
                 input
                 |> GetInputDto.deserialize
                 |> AsyncResult.ofResult
-            let dogId, effectiveDate =
+            let dogId, asOfDate =
                 dto
                 |> GetInputDto.toDomain
-            return! reconstituteState dogId effectiveDate
+            let! dogStateDto =
+                (dogId, asOfDate)
+                ||> Projection.dogState queryHandler
+            return!
+                dogStateDto
+                |> Json.trySerializeToJson
+                |> AsyncResult.ofResult
         }
     | Matches "create" ->
         asyncResult {
@@ -57,9 +56,13 @@ let handlePost path input =
                 |> CreateCommandInputDto.toDomain
                 |> AsyncResult.ofResult
                 |> AsyncResult.mapError DogError.Validation
-            return!
+            let! events =
                 (dogId, domainCommand)
                 ||> executeCommand
+            return!
+                events
+                |> Json.trySerializeToJson
+                |> AsyncResult.ofResult
         }
     | OtherCommandPath commandDto ->
         asyncResult {
@@ -72,9 +75,13 @@ let handlePost path input =
                 |> OtherCommandInputDto.toDomain commandDto
                 |> AsyncResult.ofResult
                 |> AsyncResult.mapError DogError.Validation
-            return!
+            let! events =
                 (dogId, domainCommand)
                 ||> executeCommand
+            return!
+                events
+                |> Json.trySerializeToJson
+                |> AsyncResult.ofResult
         }
     | invalid ->
         sprintf "invalid path %s" invalid
