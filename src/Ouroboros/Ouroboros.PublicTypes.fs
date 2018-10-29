@@ -142,11 +142,11 @@ type Handle<'DomainCommand, 'DomainEvent, 'DomainError> =
 
 type Replay<'DomainEvent, 'DomainError> =
     EntityId
-     -> AsOfDate
+     -> AsOf
      -> AsyncResult<RecordedDomainEvent<'DomainEvent> list, 'DomainError>
 
 type Reconstitute<'DomainEvent, 'DomainState, 'DomainError> =
-    RecordedDomainEvent<'DomainEvent> list
+    DomainEvent<'DomainEvent> list
      -> Result<'DomainState, 'DomainError>
 
 type Repository<'DomainEvent, 'DomainError> =
@@ -164,4 +164,4 @@ type CommandHandler<'DomainCommand, 'DomainEvent, 'DomainError> =
 
 type QueryHandler<'DomainState, 'DomainEvent, 'DomainError> =
     { replay: Replay<'DomainEvent, 'DomainError>
-      reconstitute: Reconstitute<'DomainState, 'DomainError> }
+      reconstitute: Reconstitute<'DomainEvent, 'DomainState, 'DomainError> }

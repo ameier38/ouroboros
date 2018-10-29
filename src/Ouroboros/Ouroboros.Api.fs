@@ -1,6 +1,7 @@
 module Ouroboros.Api
 
 open Ouroboros.Constants
+open SimpleType
 
 module List =
     let divide extractA extractB items =
@@ -189,6 +190,17 @@ module RecordedDomainEvent =
           Data = recordedDomainEvent.Data
           Meta = recordedDomainEvent.Meta }
 
+module ExpectedVersion =
+    let create nEvents =
+        match nEvents with
+        | n when n = 0 -> NoStream |> Ok
+        | n -> 
+            n 
+            |> int64
+            |> PositiveLong.create
+            |> Result.map ExpectedVersion.Specific
+            |> Result.mapError DogError.Validation
+
 module Repository =
     let create
         (store:Store<'StoreError>) 
@@ -256,20 +268,27 @@ module QueryHandler =
         let zero = aggregate.zero |> Ok
         let replay
             (entityId:EntityId)
-            (AsOfDate asOfDate) =
+            (asOf:AsOf) =
             asyncResult {
                 let! recordedDomainEvents = repo.load entityId
+                let atOrBeforeAsOf (recordedDomainEvent:RecordedDomainEvent<'DomainEvent>) =
+                    match asOf with
+                    | Latest -> true
+                    | Specific (AsOfDate asOfDate) ->
+                        let createdDate = 
+                            recordedDomainEvent.CreatedDate 
+                            |> CreatedDate.value
+                        createdDate <= asOfDate
                 return
                     recordedDomainEvents
-                    |> List.filter (
-                        fun ({ CreatedDate = (CreatedDate createdDate)}) -> 
-                            createdDate <= asOfDate)
+                    |> List.filter atOrBeforeAsOf
             }
         let reconstitute
-            (recordedDomainEvents:RecordedDomainEvent<'DomainEvent> list) =
+            (domainEvents:DomainEvent<'DomainEvent> list) =
             result {
                 return! 
-                    recordedDomainEvents
+                    domainEvents
+                    |> List.sortBy (fun e -> (e.Meta.EffectiveDate, e.Meta.EffectiveOrder))
                     |> List.map (fun e -> e.Data)
                     |> List.map Ok
                     |> List.fold apply zero
@@ -287,10 +306,7 @@ module CommandHandler =
             (events:DomainEvent<'DomainEvent> list) =
             events
             |> List.filter (fun e -> e.Meta.EffectiveDate <= effectiveDate)
-            |> List.sortBy (fun e -> (e.Meta.EffectiveDate, e.Meta.EffectiveOrder))
-            |> List.map (fun e -> e.Data)
-            |> List.map Ok
-            |> List.fold apply zero
+            |> queryHandler.reconstitute
         let execute 
             eventAccumulator
             (domainCommand:DomainCommand<'DomainCommand>) =
@@ -308,6 +324,11 @@ module CommandHandler =
             (commands:Command<'DomainCommand> list) =
             asyncResult {
                 let! recordedDomainEvents = repo.load entityId
+                let! expectedVersion = 
+                    recordedDomainEvents 
+                    |> List.length 
+                    |> ExpectedVersion.create
+                    |> AsyncResult.ofResult
                 let (domainCommands, deleteCommands) =
                     commands
                     |> List.divide 
@@ -334,8 +355,7 @@ module CommandHandler =
                     |> List.fold execute initialState
                     |> AsyncResult.map (snd >> List.map DomainEvent)
                 let newEvents = newDomainEvents @ newDeletedEvents
-                // TODO: change Any to the count of events
-                do! repo.commit entityId Any newEvents
+                do! repo.commit entityId expectedVersion newEvents
                 return newEvents
             }
         { handle = handle }

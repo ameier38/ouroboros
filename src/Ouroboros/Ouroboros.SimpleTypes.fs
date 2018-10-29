@@ -49,7 +49,7 @@ type ExpectedVersion =
     | NoStream
     | EmptyStream
     | StreamExists
-    | ExpectedVersion of PositiveLong
+    | Specific of PositiveLong
 
 /// Date at which the event was created
 type CreatedDate = CreatedDate of DateTime

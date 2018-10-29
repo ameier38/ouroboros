@@ -60,7 +60,7 @@ module ExpectedVersion =
         | NoStream -> EventStore.ClientAPI.ExpectedVersion.NoStream |> int64
         | EmptyStream -> EventStore.ClientAPI.ExpectedVersion.EmptyStream |> int64
         | StreamExists -> EventStore.ClientAPI.ExpectedVersion.StreamExists |> int64
-        | ExpectedVersion version -> PositiveLong.value version
+        | ExpectedVersion.Specific version -> PositiveLong.value version
 
 type EventStoreError = EventStoreError of string
 
