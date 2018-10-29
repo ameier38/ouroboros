@@ -1,5 +1,9 @@
 namespace Ouroboros
 
+type AsOf =
+    | Latest
+    | Specific of AsOfDate
+
 type DomainEventMeta =
     { Source: Source 
       EffectiveDate: EffectiveDate
@@ -136,6 +140,15 @@ type Handle<'DomainCommand, 'DomainEvent, 'DomainError> =
      -> Command<'DomainCommand> list
      -> AsyncResult<Event<'DomainEvent> list, 'DomainError>
 
+type Replay<'DomainEvent, 'DomainError> =
+    EntityId
+     -> AsOfDate
+     -> AsyncResult<RecordedDomainEvent<'DomainEvent> list, 'DomainError>
+
+type Reconstitute<'DomainEvent, 'DomainState, 'DomainError> =
+    RecordedDomainEvent<'DomainEvent> list
+     -> Result<'DomainState, 'DomainError>
+
 type Repository<'DomainEvent, 'DomainError> =
     { load: Load<'DomainEvent, 'DomainError>
       loadAll: LoadAll<'DomainEvent, 'DomainError>
@@ -146,5 +159,9 @@ type Aggregate<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> =
       apply: Apply<'DomainState, 'DomainEvent, 'DomainError>
       execute: Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> }
 
-type Handler<'DomainCommand, 'DomainEvent, 'DomainError> =
+type CommandHandler<'DomainCommand, 'DomainEvent, 'DomainError> =
     { handle: Handle<'DomainCommand, 'DomainEvent, 'DomainError> }
+
+type QueryHandler<'DomainState, 'DomainEvent, 'DomainError> =
+    { replay: Replay<'DomainEvent, 'DomainError>
+      reconstitute: Reconstitute<'DomainState, 'DomainError> }

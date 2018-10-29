@@ -11,23 +11,27 @@ let mealsFolder acc event =
 
 let mealCount
     (repo:Repository<DogEvent, DogError>) =
-    fun entityId ->
+    fun dogId ->
         asyncResult {
             let initialMealCount = 0
-            let! domainEvents = repo.load entityId
+            let! domainEvents = repo.load dogId
             return
                 domainEvents
                 |> List.map (fun e -> e.Data)
                 |> List.fold mealsFolder initialMealCount
         }
 
+let stateFolder acc event =
+    match event with
+    | DogEvent.Created dog -> 
+        { state = ""}
+
 let dogState
     (repo:Repository<DogEvent, DogError>) =
-    fun entityId ->
+    fun dogId asOfDate ->
         asyncResult {
-            let! domainEvents = repo.load entityId
-            return!
-                domainEvents
-                |> List.fold aggregate.apply aggregate.zero
-                |> AsyncResult.ofResult
+            let! recordedDomainEvents = repo.load dogId
+            let filteredDomainEvents =
+                recordedDomainEvents
+                |> List.filter ()
         }

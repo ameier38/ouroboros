@@ -81,6 +81,7 @@ module DomainEventType =
 type EffectiveDate = EffectiveDate of DateTime
 module EffectiveDate =
     let value (EffectiveDate date) = date
+    let create date = EffectiveDate date
 
 /// If two events occur at the exact same time, the order in which to apply them
 type EffectiveOrder = private EffectiveOrder of PositiveInt
@@ -93,6 +94,12 @@ type Source = private Source of String50
 module Source =
     let value (Source source) = String50.value source
     let create source = String50.create source |> Result.map Source
+
+/// Date at which to view the domain
+type AsOfDate = AsOfDate of DateTime
+module AsOfDate =
+    let value (AsOfDate date) = date
+    let create date = AsOfDate date
 
 // Reason for why the event is deleted
 type DeletionReason = private DeletionReason of String50

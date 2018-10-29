@@ -3,75 +3,16 @@ module Dog.Handler
 open Dog
 open Dog.Implementation
 open Ouroboros
+open Ouroboros.Api
 open System
 open Vertigo.Json
-
-type CreateCommandInputDto =
-    { dogId: Guid
-      source: string
-      effectiveDate: DateTime 
-      name: string
-      breed: string }
-module CreateCommandInputDto =
-    let deserialize json =
-        try Json.deserialize<CreateCommandInputDto> json |> Ok
-        with ex -> 
-            sprintf "could not deserialize CreateCommandInputDto %A\n%A" json ex 
-            |> DogError.IO 
-            |> Error
-    let toDomain dto =
-        result {
-            let dogId = dto.dogId |> EntityId
-            let! command =
-                { DogDto.name = dto.name
-                  breed = dogRequest.breed }
-                |> DogCommandDto.Create
-                |> DogCommandDto.toDomain
-            let! domainCommand =
-                (dto.source, dto.effectiveDate, command)
-                |||> Command.createDomainCommand
-            return dogId, domainCommand
-        }
-
-
-type OtherCommandInputDto =
-    { dogId: Guid
-      source: string
-      effectiveDate: DateTime }
-module OtherCommandInputDto =
-    let deserialize json =
-        try Json.deserialize<OtherCommandInputDto> json |> Ok
-        with ex -> 
-            sprintf "could not deserialize OtherCommandInputDto %A\n%A" json ex 
-            |> DogError.IO 
-            |> Error
-    let toDomain commandDto dto =
-        result {
-            let dogId = dto.dogId |> EntityId
-            let! command = commandDto |> DogCommandDto.toDomain
-            let! domainCommand =
-                (dto.source, dto.effectiveDate, command)
-                |||> Command.createDomainCommand
-            return dogId, domainCommand
-        }
-
-type GetInputDto =
-    { dogId: Guid
-      asOfDate: DateTime }
-module GetInputDto =
-    let deserialize json =
-        try Json.deserialize<GetInputDto> json |> Ok
-        with ex ->
-            sprintf "could not deserialize GetInputDto %A\n%A" json ex 
-            |> DogError.IO 
-            |> Error
 
 let (|Matches|_|) pattern value =
     if value = pattern 
     then Some Matches
     else None
 
-let (|OtherPath|_|) = function
+let (|OtherCommandPath|_|) = function
     | Matches "eat" -> DogCommandDto.Eat |> Some
     | Matches "sleep" -> DogCommandDto.Sleep |> Some
     | Matches "wake" -> DogCommandDto.Wake |> Some
@@ -84,28 +25,53 @@ let executeCommand dogId domainCommand =
         let handle = handler.handle dogId
         return! handle [ domainCommand ]
     }
+
+let reconstituteState dogId effectiveDate =
+    asyncResult {
+        let! handler = handlerResult |> AsyncResult.ofResult
+        let reconstitute = handler.reconstitute dogId
+        return! reconstitute effectiveDate
+    }
+
 let handlePost path input =
     match path with
+    | Matches "get" ->
+        asyncResult {
+            let! dto =
+                input
+                |> GetInputDto.deserialize
+                |> AsyncResult.ofResult
+            let dogId, effectiveDate =
+                dto
+                |> GetInputDto.toDomain
+            return! reconstituteState dogId effectiveDate
+        }
     | Matches "create" ->
         asyncResult {
             let! dto = 
                 input 
                 |> CreateCommandInputDto.deserialize
+                |> AsyncResult.ofResult
             let! dogId, domainCommand =
                 dto
                 |> CreateCommandInputDto.toDomain
+                |> AsyncResult.ofResult
+                |> AsyncResult.mapError DogError.Validation
             return!
                 (dogId, domainCommand)
                 ||> executeCommand
         }
-    | OtherPath commandDto ->
+    | OtherCommandPath commandDto ->
         asyncResult {
             let! dto = 
                 input 
                 |> OtherCommandInputDto.deserialize
+                |> AsyncResult.ofResult
             let! dogId, domainCommand =
                 dto
                 |> OtherCommandInputDto.toDomain commandDto
+                |> AsyncResult.ofResult
+                |> AsyncResult.mapError DogError.Validation
             return!
                 (dogId, domainCommand)
                 ||> executeCommand

@@ -94,13 +94,6 @@ let expectedRagglesEventTypes =
       "Ate"
       "Deleted" ]
 
-let executeCommand dogId command =
-    asyncResult {
-        let! handler = handlerResult |> AsyncResult.ofResult
-        let handle = handler.handle dogId
-        return! handle [ command ]
-    }
-
 let testBenji =
     test "test Benji" {
         let executeCommand' = executeCommand benjiId

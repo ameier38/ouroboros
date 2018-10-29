@@ -28,7 +28,7 @@ let main argv =
 
     match method with
     | m when m = "POST" -> 
-        handlePost source path input
+        handlePost path source input
         |> Async.RunSyncronously
         |> Result.bimap onSuccess onError
     | m when m = "GET" ->

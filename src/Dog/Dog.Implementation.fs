@@ -1,9 +1,10 @@
 module Dog.Implementation
 
+open Dog
 open Ouroboros
 open Ouroboros.Api
 open Ouroboros.EventStore
-open Dog
+open Vertigo.Json
 
 type Apply =
     DogState
@@ -33,10 +34,10 @@ module DogEvent =
     let serialize event =
         event
         |> DogEventDto.fromDomain
-        |> DogEventDto.serialize
+        |> DogEventDto.serializeToBytes
     let deserialize bytes =
         bytes
-        |> DogEventDto.deserializeBytes
+        |> DogEventDto.deserializeFromBytes
         |> Result.bind DogEventDto.toDomain
 
 module Apply =
