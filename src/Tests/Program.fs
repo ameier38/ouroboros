@@ -1,8 +1,6 @@
 ﻿open System
 open Expecto
 open Ouroboros
-open Ouroboros.Constants
-open Ouroboros.Api
 open Dog
 open Dog.Implementation
 

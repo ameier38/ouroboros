@@ -2,7 +2,6 @@
 module Dog.Projection
 
 open Ouroboros
-open Ouroboros.Api
 open Dog
 open Dog.Implementation
 

@@ -16,10 +16,10 @@
       <Paket>True</Paket>
       <Link>paket-files/DotEnv.fs</Link>
     </Compile>
-    <Compile Include="Ouroboros.SimpleTypes.fs" />
-    <Compile Include="Ouroboros.PublicTypes.fs" />
-    <Compile Include="Ouroboros.Dto.fs" />
-    <Compile Include="Ouroboros.fs" />
+    <Compile Include="Ouroboros.EventStore.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ouroboros\Ouroboros.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -22,11 +22,12 @@
     <Compile Include="Dog.Dto.fs" />
     <Compile Include="Dog.Implementation.fs" />
     <Compile Include="Dog.Projection.fs" />
-    <Compile Include="Dog.Handler.fs" />
-    <Compile Include="Index.fs" />
+    <Compile Include="Dog.Api.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Ouroboros\Ouroboros.fsproj" />
+    <ProjectReference Include="..\Ouroboros.EventStore\Ouroboros.EventStore.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

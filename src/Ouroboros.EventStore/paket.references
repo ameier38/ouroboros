@@ -1,5 +1,5 @@
 FSharp.Core
-Newtonsoft.Json
+EventStore.ClientAPI.NetCore
 File:Result.fs
 File:SimpleType.fs
 File:DotEnv.fs

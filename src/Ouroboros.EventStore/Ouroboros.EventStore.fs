@@ -4,7 +4,6 @@ open DotEnv
 open System
 open SimpleType
 open EventStore.ClientAPI
-open Ouroboros.Api
 
 type EventStoreConfig =
     { Uri: Uri }
@@ -60,9 +59,11 @@ module ExpectedVersion =
         | NoStream -> EventStore.ClientAPI.ExpectedVersion.NoStream |> int64
         | EmptyStream -> EventStore.ClientAPI.ExpectedVersion.EmptyStream |> int64
         | StreamExists -> EventStore.ClientAPI.ExpectedVersion.StreamExists |> int64
-        | ExpectedVersion.Specific version -> PositiveLong.value version
+        | ExpectedVersion.Specific version -> SpecificExpectedVersion.value version
 
 type EventStoreError = EventStoreError of string
+module EventStoreError =
+    let mapOuroborosError (OuroborosError error) = EventStoreError error
 
 type ReadEvents = StreamId -> StreamSlice -> Async<StreamEventsSlice>
 
@@ -93,7 +94,7 @@ let readStream (readEvents:ReadEvents) =
                 |> Array.map (SerializedRecordedEvent.fromResolvedEvent >> AsyncResult.ofResult)
                 |> Array.toList
                 |> AsyncResult.sequenceM
-                |> AsyncResult.mapError EventStoreError
+                |> AsyncResult.mapError EventStoreError.mapOuroborosError
             return events
         }
 
@@ -113,7 +114,7 @@ let readEntireStream (readEvents:ReadEvents) =
                             let eventsResult = newStreamStart |> AsyncResult.bind read |> Async.RunSynchronously
                             match eventsResult with
                             | Ok newEvents -> yield! newEvents
-                            | Error e -> failwith e
+                            | (Error (OuroborosError e)) -> failwith e
                     }
             }
         let transform recordedEvents =
@@ -123,7 +124,7 @@ let readEntireStream (readEvents:ReadEvents) =
             |> AsyncResult.sequenceM
         read streamStart
         |> AsyncResult.bind transform
-        |> AsyncResult.mapError EventStoreError
+        |> AsyncResult.mapError EventStoreError.mapOuroborosError
         
 
 let writeStream (writeEvents:WriteEvents) =

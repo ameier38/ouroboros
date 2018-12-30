@@ -1,4 +1,6 @@
-File: Result.fs
-File: SimpleType.fs
-File: DotEnv.fs
-Vertigo.Json
+FSharp.Core
+Suave
+Newtonsoft.Json
+File:Result.fs
+File:SimpleType.fs
+File:DotEnv.fs

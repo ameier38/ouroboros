@@ -1,38 +1,57 @@
 namespace Dog
 
 open System
+open System.Text
+open Newtonsoft.Json
 open Ouroboros
-open Ouroboros.Api
-open Vertigo.Json
+
+module String =
+    let toBytes (s:string) = s |> Encoding.UTF8.GetBytes
+    let fromBytes (bytes:byte[]) = bytes |> Encoding.UTF8.GetString
 
 module Json =
-    let trySerializeToBytes x =
-        try Json.serializeToBytes x |> Ok
-        with ex -> sprintf "could not serialize %A\n%A" x ex |> DogError.IO |> Error
-    let trySerializeToJson x =
-        try Json.serialize x |> Ok
-        with ex -> sprintf "could not serialize %A\n%A" x ex |> DogError.IO |> Error
-    let tryDeserializeFromBytes<'Dto> bytes =
-        try Json.deserializeFromBytes<'Dto> bytes |> Ok
-        with ex -> sprintf "could not deserialize %A\n%A" bytes ex |> DogError.IO |> Error
-    let tryDeserializeFromJson<'Dto> json =
-        try Json.deserialize<'Dto> json |> Ok
-        with ex -> sprintf "could not deserialize %A\n%A" json ex |> DogError.IO |> Error
-
+    let serializeToJson (o:obj) =
+        try
+            JsonConvert.SerializeObject o
+            |> Ok
+        with ex ->
+            sprintf "could not serialize: %A\n%A" o ex
+            |> DogError.IO
+            |> Error
+    let serializeToBytes (o:obj) =
+        serializeToJson o
+        |> Result.map String.toBytes
+    let deserializeFromJson<'Object> (json:string) =
+        try
+            json
+            |> JsonConvert.DeserializeObject<'Object>
+            |> Ok
+        with ex ->
+            sprintf "could not deserialize: %A" ex
+            |> DogError.IO
+            |> Error
+    let deserializeFromBytes<'Object> (bytes:byte[]) =
+        bytes
+        |> String.fromBytes
+        |> deserializeFromJson<'Object>
 
 type DogDto =
     { name: string
       breed: string }
 module DogDto =
-    let serializeToBytes (dto:DogDto) = Json.trySerializeToBytes dto
-    let deserializeFromBytes = Json.tryDeserializeFromBytes<DogDto>
+    let serializeToBytes (dto:DogDto) = Json.serializeToBytes dto
+    let deserializeFromBytes = Json.deserializeFromBytes<DogDto>
     let fromDomain (dog:Dog) =
         { name = Name.value dog.Name
           breed = Breed.value dog.Breed }
     let toDomain (dto:DogDto) =
         result {
-            let! name = Name.create dto.name
-            let! breed = Breed.create dto.breed
+            let! name = 
+                Name.create dto.name 
+                |> Result.mapError DogError.Validation
+            let! breed = 
+                Breed.create dto.breed 
+                |> Result.mapError DogError.Validation
             return
                 { Name = name
                   Breed = breed }
@@ -45,9 +64,8 @@ type DogEventDto =
     | Woke
     | Played
 module DogEventDto =
-    let serializeToBytes (dto:DogEventDto) = Json.trySerializeToBytes dto
-    let serializeToJson (dto:DogEventDto) = Json.trySerializeToJson dto
-    let deserializeFromBytes = Json.tryDeserializeFromBytes<DogEventDto>
+    let serializeToBytes (dto:DogEventDto) = Json.serializeToBytes dto
+    let deserializeFromBytes = Json.deserializeFromBytes<DogEventDto>
     let fromDomain = function
         | DogEvent.Born dog ->
             dog
@@ -62,7 +80,6 @@ module DogEventDto =
             dogDto
             |> DogDto.toDomain
             |> Result.map DogEvent.Born
-            |> Result.mapError DogError.Validation
         | DogEventDto.Ate -> DogEvent.Ate |> Ok
         | DogEventDto.Slept -> DogEvent.Slept |> Ok
         | DogEventDto.Woke -> DogEvent.Woke |> Ok
@@ -98,60 +115,54 @@ type DogStateDto =
     { state: string
       dog: DogDto option }
 module DogStateDto =
-    let serializeToJson (dto:DogStateDto) = Json.trySerializeToJson dto
+    let serializeToBytes (dto:DogStateDto) = Json.serializeToBytes dto
 
-type CreateCommandInputDto =
+type CreateDogCommandRequestDto =
     { dogId: Guid
       source: string
       effectiveDate: DateTime 
       name: string
       breed: string }
-module CreateCommandInputDto =
-    let deserialize = Json.tryDeserializeFromJson<CreateCommandInputDto>
-    let toDomain dto =
-        result {
-            let dogId = dto.dogId |> EntityId
-            let! command =
-                { DogDto.name = dto.name
-                  breed = dto.breed }
-                |> DogCommandDto.Create
-                |> DogCommandDto.toDomain
-            let! domainCommand =
-                (dto.source, dto.effectiveDate, command)
-                |||> Command.createDomainCommand
-            return dogId, domainCommand
-        }
+module CreateDogCommandRequestDto =
+    let deserialize = Json.deserializeFromBytes<CreateDogCommandRequestDto>
+    let toDomain
+        (mapOuroborosError:OuroborosError -> DogError) =
+        fun dto ->
+            result {
+                let dogId = dto.dogId |> EntityId
+                let! command =
+                    { DogDto.name = dto.name
+                      breed = dto.breed }
+                    |> DogCommandDto.Create
+                    |> DogCommandDto.toDomain
+                let! domainCommand =
+                    (dto.source, dto.effectiveDate, command)
+                    |||> Command.createDomainCommand mapOuroborosError
+                return dogId, domainCommand
+            }
 
-type OtherCommandInputDto =
+type DogCommandRequestDto =
     { dogId: Guid
       source: string
       effectiveDate: DateTime }
-module OtherCommandInputDto =
-    let deserialize json =
-        try Json.deserialize<OtherCommandInputDto> json |> Ok
-        with ex -> 
-            sprintf "could not deserialize OtherCommandInputDto %A\n%A" json ex 
-            |> DogError.IO 
-            |> Error
-    let toDomain commandDto dto =
-        result {
-            let dogId = dto.dogId |> EntityId
-            let! command = commandDto |> DogCommandDto.toDomain
-            let! domainCommand =
-                (dto.source, dto.effectiveDate, command)
-                |||> Command.createDomainCommand
-            return dogId, domainCommand
-        }
+module DogCommandRequestDto =
+    let deserialize = Json.deserializeFromBytes<DogCommandRequestDto>
+    let toDomain 
+        (mapOuroborosError:OuroborosError -> DogError) =
+        fun commandDto dto ->
+            result {
+                let dogId = dto.dogId |> EntityId
+                let! command = commandDto |> DogCommandDto.toDomain
+                let! domainCommand =
+                    (dto.source, dto.effectiveDate, command)
+                    |||> Command.createDomainCommand mapOuroborosError
+                return dogId, domainCommand
+            }
 
-type GetInputDto =
+type GetRequestDto =
     { dogId: Guid
       asOfDate: DateTime }
-module GetInputDto =
-    let deserialize json =
-        try Json.deserialize<GetInputDto> json |> Ok
-        with ex ->
-            sprintf "could not deserialize GetInputDto %A\n%A" json ex 
-            |> DogError.IO 
-            |> Error
+module GetRequestDto =
+    let deserialize = Json.deserializeFromBytes<GetRequestDto>
     let toDomain dto =
         (dto.dogId |> EntityId, dto.asOfDate |> AsOfDate)

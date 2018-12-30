@@ -1,7 +1,5 @@
 namespace Dog
 
-open Ouroboros
-
 type Dog =
     { Name: Name
       Breed: Breed }

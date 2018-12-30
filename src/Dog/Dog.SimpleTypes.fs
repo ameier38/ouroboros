@@ -5,7 +5,9 @@ open SimpleType
 type Name = private Name of String50
 module Name =
     let value (Name name) = String50.value name
-    let create name = String50.create name |> Result.map Name
+    let create name = 
+        String50.create name 
+        |> Result.map Name
 
 type Breed = private Breed of String50
 module Breed =

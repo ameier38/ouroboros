@@ -1,10 +1,12 @@
 source https://www.nuget.org/api/v2
 
-nuget EventStore.Client
-nuget Vertigo.Json
 github ameier38/fsharp-common Result.fs
 github ameier38/fsharp-common SimpleType.fs
 github ameier38/fsharp-common DotEnv.fs
+nuget EventStore.ClientAPI.NetCore
+nuget MinVer 1.0.0-beta.2 beta
+nuget Newtonsoft.Json
+nuget Suave
 nuget Expecto
 nuget Expecto.BenchmarkDotNet
 nuget Expecto.FsCheck

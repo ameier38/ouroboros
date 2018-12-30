@@ -1,7 +1,28 @@
 namespace Ouroboros
 
 open System
-open Vertigo.Json
+open System.Text
+open Newtonsoft.Json
+
+module Json =
+    let serializeToBytes o =
+        try
+            JsonConvert.SerializeObject o
+            |> Encoding.UTF8.GetBytes
+            |> Ok
+        with ex ->
+            sprintf "could not serialize: %A\n%A" o ex
+            |> OuroborosError
+            |> Error
+    let deserializeFromBytes<'Object> (bytes:byte[]) =
+        try
+            Encoding.UTF8.GetString bytes
+            |> JsonConvert.DeserializeObject<'Object>
+            |> Ok
+        with ex ->
+            sprintf "could not deserialize: %A" ex
+            |> OuroborosError
+            |> Error
 
 type DomainEventMetaDto =
     { Source: string 
@@ -22,12 +43,8 @@ module DomainEventMetaDto =
                   EffectiveOrder = effectiveOrder
                   Source = source }
         }
-    let serialize (dto:DomainEventMetaDto) =
-        try Json.serializeToBytes dto |> Ok
-        with ex -> sprintf "could not serialize DomainEventMetaDto: %A\n%A" ex dto |> Error
-    let deserialize json =
-        try Json.deserializeFromBytes<DomainEventMetaDto> json |> Ok
-        with ex -> sprintf "could not deserialize DomainEventMetaDto: %A" ex |> Error
+    let serialize (dto:DomainEventMetaDto) = dto |> Json.serializeToBytes
+    let deserialize = Json.deserializeFromBytes<DomainEventMetaDto>
 
 type DeletedEventMetaDto =
     { Source: string }
@@ -40,12 +57,8 @@ module DeletedEventMetaDto =
             return
                 { DeletedEventMeta.Source = source }
         }
-    let serialize (dto:DeletedEventMetaDto) =
-        try Json.serializeToBytes dto |> Ok
-        with ex -> sprintf "could not serialize DeletedEventMetaDto: %A\n%A" ex dto |> Error
-    let deserialize json =
-        try Json.deserializeFromBytes<DeletedEventMetaDto> json |> Ok
-        with ex -> sprintf "could not deserialize DeletedEventMetaDto: %A" ex |> Error
+    let serialize (dto:DeletedEventMetaDto) = dto |> Json.serializeToBytes
+    let deserialize = Json.deserializeFromBytes<DeletedEventMetaDto>
 
 type DeletionDto =
     { EventNumber: int64
@@ -62,9 +75,5 @@ module DeletionDto =
                 { Deletion.EventNumber = eventNumber
                   Reason = reason }
         }
-    let serialize (dto:DeletionDto) =
-        try Json.serializeToBytes dto |> Ok
-        with ex -> sprintf "could not serialize DeletionDto: %A\n%A" ex dto |> Error
-    let deserialize json =
-        try Json.deserializeFromBytes<DeletionDto> json |> Ok
-        with ex -> sprintf "could not deserialize DeletionDto: %A" ex |> Error
+    let serialize (dto:DeletionDto) = dto |> Json.serializeToBytes
+    let deserialize = Json.deserializeFromBytes<DeletionDto>

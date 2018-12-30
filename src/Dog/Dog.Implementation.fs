@@ -2,9 +2,7 @@ module Dog.Implementation
 
 open Dog
 open Ouroboros
-open Ouroboros.Api
 open Ouroboros.EventStore
-open Vertigo.Json
 
 type Apply =
     DogState
@@ -29,6 +27,8 @@ module Dog =
 module DogError =
     let io s = DogError.IO s |> Error
     let validation s = DogError.Validation s |> Error
+    let mapOuroborosError (OuroborosError error) = error |> DogError.Validation
+    let mapEventStoreError (EventStoreError error) = error |> DogError.IO
 
 module DogEvent =
     let serialize event =
@@ -63,12 +63,12 @@ module Apply =
         | Bored -> Tired |> success
         | state -> sprintf "dog cannot play in state: \n%A" state |> fail
 
-
 module DomainEvent =
     let createEffectiveOrder order =
         order
         |> EffectiveOrder.create
-        |> Result.mapError DogError.Validation
+        |> Result.mapError DogError.mapOuroborosError
+
     let getEffectiveOrder = function
         | DogEvent.Born _ -> createEffectiveOrder 1
         | DogEvent.Ate -> createEffectiveOrder 2
@@ -78,7 +78,7 @@ module DomainEvent =
     let createEventType eventType =
         eventType
         |> DomainEventType.create
-        |> Result.mapError DogError.Validation
+        |> Result.mapError DogError.mapOuroborosError
     let getEventType = function
         | DogEvent.Born _ -> createEventType "Born"
         | DogEvent.Ate -> createEventType "Ate"
@@ -187,16 +187,19 @@ let aggregate =
 
 let repoResult =
     result {
-        let! config = EventStoreConfig.load () |> Result.mapError DogError.IO
+        let! config = 
+            EventStoreConfig.load () 
+            |> Result.mapError DogError.IO
         let store = eventStore config.Uri
-        let! entityType = EntityType.create "dog" |> Result.mapError DogError.Validation
+        let! entityType = 
+            EntityType.create "dog" 
+            |> Result.mapError DogError.mapOuroborosError
         let mapError err = DogError.Validation err
-        let mapStoreError (EventStoreError err) = DogError.IO err
         let repo = 
             Repository.create 
                 store 
-                mapError 
-                mapStoreError 
+                DogError.mapOuroborosError
+                DogError.mapEventStoreError 
                 serializer 
                 entityType
         return repo
@@ -211,5 +214,5 @@ let queryHandlerResult =
 let commandHandlerResult =
     result {
         let! repo = repoResult
-        return CommandHandler.create DogError.Validation aggregate repo
+        return CommandHandler.create DogError.mapOuroborosError aggregate repo
     }
