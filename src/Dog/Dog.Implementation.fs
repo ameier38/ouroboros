@@ -4,6 +4,9 @@ open Dog
 open Ouroboros
 open Ouroboros.EventStore
 
+type Filter =
+    
+
 type Apply =
     DogState
      -> DogEvent
@@ -14,21 +17,21 @@ type Execute =
      -> DomainCommand<DogCommand>
      -> AsyncResult<DomainEvent<DogEvent> list, DogError>
 
-module Dog =
-    let create name breed =
-        result {
-            let! name' = name |> Name.create
-            let! breed' = breed |> Breed.create
-            return
-                { Name = name'
-                  Breed = breed' }
-        }
-
 module DogError =
     let io s = DogError.IO s |> Error
     let validation s = DogError.Validation s |> Error
     let mapOuroborosError (OuroborosError error) = error |> DogError.Validation
     let mapEventStoreError (EventStoreError error) = error |> DogError.IO
+
+module Dog =
+    let create name breed =
+        result {
+            let! name' = name |> Name.create |> Result.mapError DogError.Validation
+            let! breed' = breed |> Breed.create |> Result.mapError DogError.Validation
+            return
+                { Name = name'
+                  Breed = breed' }
+        }
 
 module DogEvent =
     let serialize event =

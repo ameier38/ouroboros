@@ -2,17 +2,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\paket-files\ameier38\fsharp-common\Result.fs">
       <Paket>True</Paket>
       <Link>paket-files/Result.fs</Link>
     </Compile>
+    <Compile Include="Test.Integration.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Ouroboros\Ouroboros.fsproj" />
     <ProjectReference Include="..\Dog\Dog.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

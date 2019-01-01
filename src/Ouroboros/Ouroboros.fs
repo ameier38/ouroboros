@@ -227,24 +227,25 @@ module Implementation =
                         |> Result.sequence
                         |> AsyncResult.ofResult
                 }
+            let filter recordedEvents =
+                let (domainEvents, deletedEvents) =
+                    recordedEvents
+                    |> List.divide 
+                        RecordedEvent.extractDomainEvent 
+                        RecordedEvent.extractDeletedEvent
+                let deletedEventNumbers =
+                    deletedEvents
+                    |> List.map (fun e -> e.Data.EventNumber)
+                domainEvents
+                |> List.filter (fun e ->
+                    deletedEventNumbers 
+                    |> List.contains e.EventNumber 
+                    |> not)
             let load entityId =
                 asyncResult {
                     let! recordedEvents = loadAll entityId
-                    let (domainEvents, deletedEvents) =
-                        recordedEvents
-                        |> List.divide 
-                            RecordedEvent.extractDomainEvent 
-                            RecordedEvent.extractDeletedEvent
-                    let deletedEventNumbers =
-                        deletedEvents
-                        |> List.map (fun e -> e.Data.EventNumber)
-                    let filteredDomainEvents =
-                        domainEvents
-                        |> List.filter (fun e ->
-                            deletedEventNumbers 
-                            |> List.contains e.EventNumber 
-                            |> not)
-                    return filteredDomainEvents
+                    let recordedDomainEvents = filter recordedEvents
+                    return recordedDomainEvents
                 }
             let commit entityId expectedVersion events = 
                 asyncResult {

@@ -29,7 +29,7 @@ F# functions and types to help with building event sourced applications.
 
 ### Prerequisites:
 
-- Docker and Docker Compose: See [andrewcmeier.com/win-dev](https://andrewcmeier.com/win-dev#docker-and-docker-compose)
+- Docker: See [andrewcmeier.com/win-dev](https://andrewcmeier.com/win-dev#docker)
 for information on how to install on Windows.
 - kubectl: See [andrewcmeier.com/win-dev](https://andrewcmeier.com/win-dev#kubectl)
 for information on how to install on Windows.
@@ -37,8 +37,10 @@ for information on how to install on Windows.
 ### Structure
 ```
 src
-├── Ouroboros: main library
-└── Tests: tests
+├── Dog                     --> Example application
+├── Ouroboros               --> Main library
+├── Ouroboros.EventStore    --> Event Store integration
+└── Tests                   --> Test suite
 ```
 
 ### Testing
