@@ -128,13 +128,13 @@ module Implementation =
 
     module QueryHandler =
         let create
-            (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError>)
-            (repo:Repository<'DomainEvent,'DomainError>) =
+            (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainCommandMeta,'DomainEvent,'DomainEventMeta,'DomainError>)
+            (repo:Repository<'DomainEvent,'DomainEventMeta,'DomainError>) =
             let apply = Result.bind2 aggregate.apply
             let zero = aggregate.zero |> Ok
             let replay
                 (entityId:EntityId)
-                (asOf:AsOf) =
+                (when:When) =
                 asyncResult {
                     let! recordedDomainEvents = repo.load entityId
                     let atOrBeforeAsOf (recordedDomainEvent:RecordedDomainEvent<'DomainEvent>) =
