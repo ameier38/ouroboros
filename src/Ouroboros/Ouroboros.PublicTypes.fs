@@ -1,37 +1,21 @@
 namespace Ouroboros
 
-type AsOf =
-    | Latest
-    | Specific of AsOfDate
+open System
 
-type DomainEventMeta =
-    { Source: Source 
-      EffectiveDate: EffectiveDate
-      EffectiveOrder: EffectiveOrder }
+type When =
+    | AsOf of DateTime
+    | AsAt of DateTime
 
-type DeletedEventMeta =
-    { Source: Source }
+type EventMeta<'DomainEventMeta> =
+    { EffectiveDate: EffectiveDate
+      EffectiveOrder: EffectiveOrder
+      DomainEventMeta: 'DomainEventMeta }
 
-type Deletion =
-    { EventNumber: EventNumber
-      Reason: DeletionReason }
-
-type EventType =
-    | DomainEventType of DomainEventType
-    | DeletedEventType
-
-type DomainEvent<'DomainEvent> =
-    { Type: DomainEventType
+type Event<'DomainEvent, 
+           'DomainEventMeta> =
+    { Type: EventType
       Data: 'DomainEvent
-      Meta: DomainEventMeta }
-
-type DeletedEvent =
-    { Data: Deletion
-      Meta: DeletedEventMeta }
-
-type Event<'DomainEvent> = 
-    | DomainEvent of DomainEvent<'DomainEvent>
-    | DeletedEvent of DeletedEvent
+      Meta: EventMeta<'DomainEventMeta> }
 
 type SerializedEvent =
     { Type: EventType
@@ -46,37 +30,23 @@ type SerializedRecordedEvent =
       Data: byte array
       Meta: byte array }
 
-type RecordedDomainEvent<'DomainEvent> =
+type RecordedEvent<'DomainEvent, 
+                   'DomainEventMeta> =
     { Id: EventId
       EventNumber: EventNumber
       CreatedDate: CreatedDate
-      Type: DomainEventType
+      Type: EventType
       Data: 'DomainEvent
-      Meta: DomainEventMeta }
+      Meta: EventMeta<'DomainEventMeta> }
 
-type RecordedDeletedEvent =
-    { Id: EventId
-      EventNumber: EventNumber
-      CreatedDate: CreatedDate
-      Data: Deletion
-      Meta: DeletedEventMeta }
+type CommandMeta<'DomainCommandMeta> =
+    { EffectiveDate: EffectiveDate
+      DomainCommandMeta: 'DomainCommandMeta }
 
-type RecordedEvent<'DomainEvent> =
-    | RecordedDomainEvent of RecordedDomainEvent<'DomainEvent>
-    | RecordedDeletedEvent of RecordedDeletedEvent
-
-type DomainCommand<'DomainCommand> =
-    { Source: Source
-      EffectiveDate: EffectiveDate
-      Data: 'DomainCommand }
-
-type DeleteCommand =
-    { Source: Source
-      Data: Deletion }
-
-type Command<'DomainCommand> =
-    | DomainCommand of DomainCommand<'DomainCommand>
-    | Delete of DeleteCommand
+type Command<'DomainCommand, 
+             'DomainCommandMeta> =
+    { Data: 'DomainCommand
+      Meta: CommandMeta<'DomainCommandMeta> }
 
 type ReadStream<'StoreError> = 
     StreamSlice 
@@ -99,74 +69,89 @@ type Store<'StoreError> =
       readEntireStream: ReadEntireStream<'StoreError>
       writeStream: WriteStream<'StoreError> }
 
-type Serialize<'DomainEvent, 'DomainError> = 
-    'DomainEvent 
-     -> Result<byte array, 'DomainError>
-
-type Deserialize<'DomainEvent, 'DomainError> = 
-    byte array 
-     -> Result<'DomainEvent, 'DomainError>
-
-type Serializer<'DomainEvent, 'DomainError> =
-    { serialize: Serialize<'DomainEvent, 'DomainError>
-      deserialize: Deserialize<'DomainEvent, 'DomainError> }
-
-type LoadAll<'DomainEvent, 'DomainError> =
+type Load<'DomainEvent, 
+          'DomainEventMeta, 
+          'DomainError> =
     EntityId
-     -> AsyncResult<RecordedEvent<'DomainEvent> list, 'DomainError>
+     -> AsyncResult<RecordedEvent<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
 
-type Filter<'DomainEvent> =
-    RecordedEvent<'DomainEvent> list
-     -> RecordedDomainEvent<'DomainEvent> list
+type Filter<'DomainEvent, 
+            'DomainEventMeta> =
+    RecordedEvent<'DomainEvent, 'DomainEventMeta> list
+     -> RecordedEvent<'DomainEvent, 'DomainEventMeta> list
 
-type Load<'DomainEvent, 'DomainError> = 
-    EntityId 
-     -> AsyncResult<RecordedDomainEvent<'DomainEvent> list, 'DomainError>
-
-type Commit<'DomainEvent, 'DomainError> = 
+type Commit<'DomainEvent, 
+            'DomainEventMeta, 
+            'DomainError> = 
     EntityId 
      -> ExpectedVersion 
-     -> Event<'DomainEvent> list
+     -> Event<'DomainEvent, 'DomainEventMeta> list
      -> AsyncResult<unit, 'DomainError>
 
-type Apply<'DomainState, 'DomainEvent, 'DomainError> =
+type Apply<'DomainState, 
+           'DomainEvent, 
+           'DomainError> =
     'DomainState
      -> 'DomainEvent
      -> Result<'DomainState, 'DomainError>
 
-type Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> =
+type Execute<'DomainState, 
+             'DomainCommand, 
+             'DomainCommandMeta, 
+             'DomainEvent, 
+             'DomainEventMeta, 
+             'DomainError> =
     'DomainState
-     -> DomainCommand<'DomainCommand>
-     -> AsyncResult<DomainEvent<'DomainEvent> list, 'DomainError>
+     -> Command<'DomainCommand, 'DomainCommandMeta>
+     -> AsyncResult<Event<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
 
-type Handle<'DomainCommand, 'DomainEvent, 'DomainError> =
+type Handle<'DomainCommand, 
+            'DomainCommandMeta, 
+            'DomainEvent, 
+            'DomainEventMeta, 
+            'DomainError> =
     EntityId
-     -> Command<'DomainCommand> list
-     -> AsyncResult<Event<'DomainEvent> list, 'DomainError>
+     -> Command<'DomainCommand, 'DomainCommandMeta> list
+     -> AsyncResult<Event<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
 
-type Replay<'DomainEvent, 'DomainError> =
+type Replay<'DomainEvent, 
+            'DomainEventMeta, 
+            'DomainError> =
     EntityId
-     -> AsOf
-     -> AsyncResult<RecordedDomainEvent<'DomainEvent> list, 'DomainError>
+     -> When
+     -> AsyncResult<RecordedEvent<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
 
-type Reconstitute<'DomainEvent, 'DomainState, 'DomainError> =
-    DomainEvent<'DomainEvent> list
+type Reconstitute<'DomainEvent, 
+                  'DomainEventMeta, 
+                  'DomainState, 
+                  'DomainError> =
+    Event<'DomainEvent, 'DomainEventMeta> list
      -> Result<'DomainState, 'DomainError>
 
-type Repository<'DomainEvent, 'DomainError> =
-    { loadAll: LoadAll<'DomainEvent, 'DomainError>
-      filter: Filter<'DomainEvent>
-      load: Load<'DomainEvent, 'DomainError>
-      commit: Commit<'DomainEvent, 'DomainError> }
+type Repository<'DomainEvent, 
+                'DomainEventMeta, 
+                'DomainError> =
+    { loadAll: Load<'DomainEvent, 'DomainEventMeta, 'DomainError>
+      load: Load<'DomainEvent, 'DomainEventMeta, 'DomainError>
+      commit: Commit<'DomainEvent, 'DomainEventMeta, 'DomainError> }
 
-type Aggregate<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> =
+type Aggregate<'DomainState,
+               'DomainCommand, 
+               'DomainCommandMeta, 
+               'DomainEvent, 
+               'DomainEventMeta, 
+               'DomainError> =
     { zero: 'DomainState 
       apply: Apply<'DomainState, 'DomainEvent, 'DomainError>
-      execute: Execute<'DomainState, 'DomainCommand, 'DomainEvent, 'DomainError> }
+      execute: Execute<'DomainState, 'DomainCommand, 'DomainCommandMeta, 'DomainEvent, 'DomainEventMeta, 'DomainError> }
 
-type CommandHandler<'DomainCommand, 'DomainEvent, 'DomainError> =
-    { handle: Handle<'DomainCommand, 'DomainEvent, 'DomainError> }
+type CommandHandler<'DomainCommand, 
+                    'DomainCommandMeta,
+                    'DomainEvent, 
+                    'DomainEventMeta,
+                    'DomainError> =
+    { handle: Handle<'DomainCommand, 'DomainCommandMeta, 'DomainEvent, 'DomainEventMeta, 'DomainError> }
 
-type QueryHandler<'DomainState, 'DomainEvent, 'DomainError> =
-    { replay: Replay<'DomainEvent, 'DomainError>
-      reconstitute: Reconstitute<'DomainEvent, 'DomainState, 'DomainError> }
+type QueryHandler<'DomainState, 'DomainEvent, 'DomainEventMeta, 'DomainError> =
+    { replay: Replay<'DomainEvent, 'DomainEventMeta, 'DomainError>
+      reconstitute: Reconstitute<'DomainEvent, 'DomainEventMeta, 'DomainState, 'DomainError> }

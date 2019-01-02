@@ -102,6 +102,7 @@ Below are a list of resources to get started with event sourcing.
 - [FsUno](https://github.com/thinkbeforecoding/FsUno/blob/master/FsUno/Game.fs)
 - [Greg Young video on DDD](https://youtu.be/LDW0QWie21s)
 - [12 Things You Should Know About Event Sourcing](http://blog.leifbattermann.de/2017/04/21/12-things-you-should-know-about-event-sourcing/)
+- [Pre and Post dated events](http://codebetter.com/gregyoung/2014/03/02/event-sourcing-and-postpre-dated-transactions/)
 - [Event Store on Kubernetes on Google Cloud](https://blog.2mas.xyz/setting-up-event-store-with-kubernetes-on-google-cloud/)
 - [Event Store on Kubernetes on AWS](http://www.dinuzzo.co.uk/2018/08/13/set-up-an-eventstore-cluster-on-kubernetes/)
 

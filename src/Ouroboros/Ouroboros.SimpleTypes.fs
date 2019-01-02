@@ -3,15 +3,6 @@ namespace Ouroboros
 open System
 open SimpleType
 
-module Constants =
-    let [<Literal>] DeletedEventTypeValue = "Deleted"
-
-module List =
-    let divide extractA extractB items =
-        let listA = items |> List.choose extractA
-        let listB = items |> List.choose extractB
-        (listA, listB)
-
 /// Ouroboros error
 type OuroborosError = OuroborosError of string
 module OuroborosError =
@@ -26,7 +17,7 @@ module EntityType =
         |> Result.map EntityType
         |> Result.mapError OuroborosError
 
-/// Unique identifier for the entity (e.g., for a loan, the loan id).
+/// Unique identifier for the entity.
 type EntityId = EntityId of Guid
 module EntityId =
     let value (EntityId guid) = guid
@@ -106,17 +97,12 @@ module EventNumber =
         |> Result.mapError OuroborosError
 
 /// Friendly name for the type of event
-type DomainEventType = private DomainEventType of string
-module DomainEventType =
-    let value (DomainEventType eventType) = eventType
-    let create = function 
-        | Constants.DeletedEventTypeValue -> 
-            sprintf "%s is a reserved EventType" Constants.DeletedEventTypeValue 
-            |> OuroborosError
-            |> Error
-        | eventType -> 
-            ConstrainedType.createString DomainEventType 50 eventType
-            |> Result.mapError OuroborosError
+type EventType = private EventType of string
+module EventType =
+    let value (EventType eventType) = eventType
+    let create eventType =
+        ConstrainedType.createString EventType 50 eventType
+        |> Result.mapError OuroborosError
 
 /// Date at which event is effective in the domain
 type EffectiveDate = EffectiveDate of DateTime
@@ -130,28 +116,4 @@ module EffectiveOrder =
     let create order = 
         PositiveInt.create order 
         |> Result.map EffectiveOrder
-        |> Result.mapError OuroborosError
-
-/// Source which caused the creation of the event
-type Source = private Source of String50
-module Source =
-    let value (Source source) = String50.value source
-    let create source = 
-        String50.create source 
-        |> Result.map Source
-        |> Result.mapError OuroborosError
-
-/// Date at which to view the domain
-type AsOfDate = AsOfDate of DateTime
-module AsOfDate =
-    let value (AsOfDate date) = date
-
-// Reason for why the event is deleted
-type DeletionReason = private DeletionReason of String50
-module DeletionReason =
-    let value (DeletionReason reason) = reason |> String50.value
-    let create reason = 
-        reason 
-        |> String50.create 
-        |> Result.map DeletionReason
         |> Result.mapError OuroborosError

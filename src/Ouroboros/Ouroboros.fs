@@ -3,196 +3,75 @@ namespace Ouroboros
 [<AutoOpen>]
 module Implementation =
 
-    module EventType =
-        let create = function
-            | Constants.DeletedEventTypeValue ->
-                DeletedEventType
-                |> Ok
-            | domainEventType ->
-                domainEventType
-                |> DomainEventType.create 
-                |> Result.map DomainEventType
-        let value = function
-            | DeletedEventType -> 
-                Constants.DeletedEventTypeValue
-            | DomainEventType eventType -> 
-                eventType 
-                |> DomainEventType.value
-
-    module Deletion =
-        let create eventNumber reason =
+    module Event =
+        let create
+            (eventType:EventType) 
+            (domainEvent:'DomainEvent) 
+            (meta:EventMeta<'DomainEventMeta>) =
+            { Event.Type = eventType
+              Data = domainEvent
+              Meta = meta }
+        let serialize 
+            (event:Event<'DomainEvent, 'DomainEventMeta>)
+            : Result<SerializedEvent, OuroborosError> =
             result {
-                let! eventNumber' = eventNumber |> EventNumber.create
-                let! reason' = reason |> DeletionReason.create
+                let { Event.Type = eventType
+                      Data = domainEvent
+                      Meta = meta } = event
+                let! serializedDomainEvent =
+                    domainEvent
+                    |> Json.serializeToBytes
+                let! serializedEventMeta =
+                    meta
+                    |> EventMetaDto.fromDomain
+                    |> EventMetaDto.serialize
                 return
-                    { Deletion.EventNumber = eventNumber'
-                      Reason = reason' }
+                    { SerializedEvent.Type = eventType
+                      Data = serializedDomainEvent
+                      Meta = serializedEventMeta }
             }
 
-    module DomainEventMeta =
-        let create effectiveDate effectiveOrder source =
-            { DomainEventMeta.EffectiveDate = effectiveDate
+    module EventMeta =
+        let create effectiveDate effectiveOrder domainEventMeta =
+            { EffectiveDate = effectiveDate
               EffectiveOrder = effectiveOrder
-              Source = source }
+              DomainEventMeta = domainEventMeta }
+
+    module Command =
+        let create (domainCommand:'DomainCommand) (meta:CommandMeta<'DomainCommandMeta>) =
+            { Data = domainCommand
+              Meta = meta}
+
+    module CommandMeta =
+        let create effectiveDate domainCommandMeta =
+            { EffectiveDate = effectiveDate
+              DomainCommandMeta = domainCommandMeta }
 
     module SerializedRecordedEvent =
-        let deserialize 
-            (mapOuroborosError:OuroborosError -> 'DomainError)
-            (serializer:Serializer<'DomainEvent, 'DomainError>)
-            : SerializedRecordedEvent -> Result<RecordedEvent<'DomainEvent>, 'DomainError> =
+        let deserialize<'DomainEvent> 
+            : SerializedRecordedEvent -> Result<RecordedEvent<'DomainEvent, 'DomainEventMeta>, OuroborosError> =
             fun ({ SerializedRecordedEvent.Id = eventId
                    EventNumber = eventNumber
                    CreatedDate = createdDate
                    Type = eventType 
-                   Data = serializedEventData
+                   Data = serializedDomainEvent
                    Meta = serializedEventMeta }) ->
-                match eventType with
-                | DeletedEventType ->
-                    result {
-                        let! deletion = 
-                            serializedEventData 
-                            |> DeletionDto.deserialize
-                            |> Result.bind DeletionDto.toDomain
-                            |> Result.mapError mapOuroborosError 
-                        let! deletedEventMeta = 
-                            serializedEventMeta
-                            |> DeletedEventMetaDto.deserialize
-                            |> Result.bind DeletedEventMetaDto.toDomain
-                            |> Result.mapError mapOuroborosError
-                        return
-                            { RecordedDeletedEvent.Id = eventId
-                              EventNumber = eventNumber
-                              CreatedDate = createdDate
-                              Data = deletion
-                              Meta = deletedEventMeta }
-                            |> RecordedDeletedEvent
-                    }
-                | DomainEventType domainEventType ->
-                    result {
-                        let! domainEvent = 
-                            serializedEventData 
-                            |> serializer.deserialize
-                        let! domainEventMeta = 
-                            serializedEventMeta 
-                            |> DomainEventMetaDto.deserialize
-                            |> Result.bind DomainEventMetaDto.toDomain
-                            |> Result.mapError mapOuroborosError
-                        return
-                            { RecordedDomainEvent.Id = eventId
-                              EventNumber = eventNumber
-                              CreatedDate = createdDate
-                              Type = domainEventType
-                              Data = domainEvent
-                              Meta = domainEventMeta }
-                            |> RecordedDomainEvent
-                    }
-
-    module Command =
-        let extractDomainCommand = function
-            | DomainCommand domainCommand -> Some domainCommand
-            | _ -> None
-        let extractDeleteCommand = function
-            | Delete deleteCommand -> Some deleteCommand
-            | _ -> None
-        let createDomainCommand
-            (mapOuroborosError:OuroborosError -> 'DomainError) =
-            fun source effectiveDate command ->
                 result {
-                    let! source' = 
-                        source 
-                        |> Source.create
-                        |> Result.mapError mapOuroborosError
-                    let effectiveDate' = effectiveDate |> EffectiveDate
+                    let! domainEvent = 
+                        serializedDomainEvent 
+                        |> Json.deserializeFromBytes<'DomainEvent>
+                    let! eventMeta = 
+                        serializedEventMeta 
+                        |> EventMetaDto.deserialize
+                        |> Result.bind EventMetaDto.toDomain
                     return
-                        { Source = source'
-                          EffectiveDate = effectiveDate'
-                          Data = command }
-                        |> DomainCommand
+                        { RecordedEvent.Id = eventId
+                          EventNumber = eventNumber
+                          CreatedDate = createdDate
+                          Type = eventType
+                          Data = domainEvent
+                          Meta = eventMeta }
                 }
-        let createDeleteCommand
-            (mapOuroborosError:OuroborosError -> 'DomainError) =
-            fun source deletion ->
-                result {
-                    let! source' = 
-                        source 
-                        |> Source.create
-                        |> Result.mapError mapOuroborosError
-                    return
-                        { Source = source'
-                          Data = deletion }
-                        |> Delete
-                }
-
-    module Event =
-        let createDomainEvent eventType event meta =
-            { DomainEvent.Type = eventType
-              Data = event
-              Meta = meta }
-            |> DomainEvent
-        let createDeletedEvent deletion meta =
-            { Data = deletion
-              Meta = meta }
-            |> DeletedEvent
-        let serialize
-            (mapOuroborosError:OuroborosError -> 'DomainError)
-            (serializer:Serializer<'DomainEvent, 'DomainError>) 
-            : Event<'DomainEvent> -> Result<SerializedEvent, 'DomainError> = function
-            | DeletedEvent { Data = deletion; Meta = meta } ->
-                result {
-                    let! serializedEventData =
-                        deletion
-                        |> DeletionDto.fromDomain
-                        |> DeletionDto.serialize
-                        |> Result.mapError mapOuroborosError
-                    let! serializedEventMeta =
-                        meta
-                        |> DeletedEventMetaDto.fromDomain
-                        |> DeletedEventMetaDto.serialize
-                        |> Result.mapError mapOuroborosError
-                    return
-                        { SerializedEvent.Type = DeletedEventType
-                          Data = serializedEventData
-                          Meta = serializedEventMeta }
-                }
-            | DomainEvent { Type = domainEventType; Data = domainEvent; Meta = meta } ->
-                result {
-                    let! serializedEventData =
-                        domainEvent
-                        |> serializer.serialize
-                    let! serializedEventMeta =
-                        meta
-                        |> DomainEventMetaDto.fromDomain
-                        |> DomainEventMetaDto.serialize
-                        |> Result.mapError mapOuroborosError
-                    let eventType = domainEventType |> DomainEventType
-                    return
-                        { SerializedEvent.Type = eventType
-                          Data = serializedEventData
-                          Meta = serializedEventMeta }
-                }
-
-    module DeleteCommand =
-        let toEvent (command:DeleteCommand) =
-            let meta = { DeletedEventMeta.Source = command.Source }
-            { Data = command.Data
-              Meta = meta }
-            |> DeletedEvent
-
-    module RecordedEvent =
-        let extractDomainEvent = function
-            | RecordedDomainEvent recordedDomainEvent ->
-                Some recordedDomainEvent
-            | _ -> None
-        let extractDeletedEvent = function
-            | RecordedDeletedEvent deletedEvent ->
-                Some deletedEvent
-            | _ -> None
-
-    module RecordedDomainEvent =
-        let toDomainEvent recordedDomainEvent =
-            { DomainEvent.Type = recordedDomainEvent.Type
-              Data = recordedDomainEvent.Data
-              Meta = recordedDomainEvent.Meta }
 
     module ExpectedVersion =
         let create nEvents =
@@ -207,13 +86,10 @@ module Implementation =
     module Repository =
         let create
             (store:Store<'StoreError>) 
-            (mapOuroborosError:OuroborosError -> 'DomainError)
-            (mapStoreError:'StoreError -> 'DomainError)
-            (serializer:Serializer<'DomainEvent,'DomainError>) 
+            (mapStoreError:'StoreError -> OuroborosError)
+            (filter:Filter<'DomainEvent, 'DomainEventMeta>)
             (entityType:EntityType) =
             let createStreamId = StreamId.create entityType
-            let deserialize = SerializedRecordedEvent.deserialize mapOuroborosError serializer
-            let serialize = Event.serialize mapOuroborosError serializer
             let loadAll entityId = 
                 asyncResult {
                     let streamStart  = StreamStart.zero
@@ -223,35 +99,21 @@ module Implementation =
                         |> AsyncResult.mapError mapStoreError
                     return!
                         serializedRecordedEvents
-                        |> List.map deserialize
+                        |> List.map SerializedRecordedEvent.deserialize<'DomainEvent>
                         |> Result.sequence
                         |> AsyncResult.ofResult
                 }
-            let filter recordedEvents =
-                let (domainEvents, deletedEvents) =
-                    recordedEvents
-                    |> List.divide 
-                        RecordedEvent.extractDomainEvent 
-                        RecordedEvent.extractDeletedEvent
-                let deletedEventNumbers =
-                    deletedEvents
-                    |> List.map (fun e -> e.Data.EventNumber)
-                domainEvents
-                |> List.filter (fun e ->
-                    deletedEventNumbers 
-                    |> List.contains e.EventNumber 
-                    |> not)
             let load entityId =
                 asyncResult {
                     let! recordedEvents = loadAll entityId
-                    let recordedDomainEvents = filter recordedEvents
-                    return recordedDomainEvents
+                    let filteredRecordedEvents = filter recordedEvents
+                    return filteredRecordedEvents
                 }
             let commit entityId expectedVersion events = 
                 asyncResult {
                     let! serializedEvents =
                         events
-                        |> List.map serialize
+                        |> List.map Event.serialize
                         |> Result.sequence
                         |> AsyncResult.ofResult
                     return!
@@ -365,3 +227,26 @@ module Implementation =
                     return newEvents
                 }
             { handle = handle }
+
+module Defaults =
+    type ExtractRecordedEvent<'DomainEvent, 'DomainEventMeta> =
+        RecordedEvent<'DomainEvent, 'DomainEventMeta>
+         -> RecordedEvent<'DomainEvent, 'DomainEventMeta> option
+    let filter 
+        (extractDomainEvent:ExtractRecordedEvent<'DomainEvent, 'DomainEventMeta>)
+        (extractDeletedEvent:ExtractRecordedEvent<'DomainEvent, 'DomainEventMeta>) 
+        : Filter<'DomainEvent, 'DomainEventMeta> =
+        fun recordedEvents ->
+            let (domainEvents, deletedEvents) =
+                recordedEvents
+                |> List.divide 
+                    extractDomainEvent
+                    extractDeletedEvent
+            let deletedEventNumbers =
+                deletedEvents
+                |> List.map (fun e -> e.Data.EventNumber)
+            domainEvents
+            |> List.filter (fun e ->
+                deletedEventNumbers 
+                |> List.contains e.EventNumber 
+                |> not)
