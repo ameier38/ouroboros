@@ -2,9 +2,10 @@ namespace Ouroboros
 
 open System
 
-type When =
-    | AsOf of DateTime
-    | AsAt of DateTime
+type AsDate =
+    | Latest
+    | AsOf of AsOfDate
+    | AsAt of AsAtDate
 
 type EventMeta<'DomainEventMeta> =
     { EffectiveDate: EffectiveDate
@@ -78,7 +79,14 @@ type Load<'DomainEvent,
 type Filter<'DomainEvent, 
             'DomainEventMeta> =
     RecordedEvent<'DomainEvent, 'DomainEventMeta> list
-     -> RecordedEvent<'DomainEvent, 'DomainEventMeta> list
+     -> RecordedEvent<'DomainEvent, 'DomainEventMeta>
+     -> bool
+
+type SortBy<'DomainEvent, 
+            'DomainEventMeta, 
+            'T when 'T : comparison> =
+    RecordedEvent<'DomainEvent, 'DomainEventMeta> 
+     -> 'T
 
 type Commit<'DomainEvent, 
             'DomainEventMeta, 
@@ -111,28 +119,27 @@ type Handle<'DomainCommand,
             'DomainEventMeta, 
             'DomainError> =
     EntityId
-     -> Command<'DomainCommand, 'DomainCommandMeta> list
+     -> Command<'DomainCommand, 'DomainCommandMeta>
      -> AsyncResult<Event<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
 
 type Replay<'DomainEvent, 
             'DomainEventMeta, 
             'DomainError> =
     EntityId
-     -> When
+     -> AsDate
      -> AsyncResult<RecordedEvent<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
 
 type Reconstitute<'DomainEvent, 
                   'DomainEventMeta, 
                   'DomainState, 
                   'DomainError> =
-    Event<'DomainEvent, 'DomainEventMeta> list
+    RecordedEvent<'DomainEvent, 'DomainEventMeta> list
      -> Result<'DomainState, 'DomainError>
 
 type Repository<'DomainEvent, 
                 'DomainEventMeta, 
                 'DomainError> =
-    { loadAll: Load<'DomainEvent, 'DomainEventMeta, 'DomainError>
-      load: Load<'DomainEvent, 'DomainEventMeta, 'DomainError>
+    { load: Load<'DomainEvent, 'DomainEventMeta, 'DomainError>
       commit: Commit<'DomainEvent, 'DomainEventMeta, 'DomainError> }
 
 type Aggregate<'DomainState,
@@ -140,10 +147,13 @@ type Aggregate<'DomainState,
                'DomainCommandMeta, 
                'DomainEvent, 
                'DomainEventMeta, 
-               'DomainError> =
+               'DomainError,
+               'T when 'T : comparison> =
     { zero: 'DomainState 
-      apply: Apply<'DomainState, 'DomainEvent, 'DomainError>
-      execute: Execute<'DomainState, 'DomainCommand, 'DomainCommandMeta, 'DomainEvent, 'DomainEventMeta, 'DomainError> }
+      filter: Filter<'DomainEvent,'DomainEventMeta>
+      sortBy: SortBy<'DomainEvent,'DomainEventMeta,'T>
+      apply: Apply<'DomainState,'DomainEvent,'DomainError>
+      execute: Execute<'DomainState,'DomainCommand,'DomainCommandMeta,'DomainEvent,'DomainEventMeta,'DomainError> }
 
 type CommandHandler<'DomainCommand, 
                     'DomainCommandMeta,
@@ -153,5 +163,6 @@ type CommandHandler<'DomainCommand,
     { handle: Handle<'DomainCommand, 'DomainCommandMeta, 'DomainEvent, 'DomainEventMeta, 'DomainError> }
 
 type QueryHandler<'DomainState, 'DomainEvent, 'DomainEventMeta, 'DomainError> =
-    { replay: Replay<'DomainEvent, 'DomainEventMeta, 'DomainError>
+    { replayAll: Replay<'DomainEvent, 'DomainEventMeta, 'DomainError>
+      replay: Replay<'DomainEvent, 'DomainEventMeta, 'DomainError>
       reconstitute: Reconstitute<'DomainEvent, 'DomainEventMeta, 'DomainState, 'DomainError> }
