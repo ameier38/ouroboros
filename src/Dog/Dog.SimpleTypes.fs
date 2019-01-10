@@ -3,6 +3,9 @@ namespace Dog
 open System
 open SimpleType
 
+/// First class error for Dog namespace
+type DogError = DogError of string
+
 /// Source which caused the creation of the event
 type Source = private Source of String50
 module Source =
@@ -11,19 +14,7 @@ module Source =
         String50.create source 
         |> Result.map Source
 
-/// Date at which event is effective in the domain
-type EffectiveDate = EffectiveDate of DateTime
-module EffectiveDate =
-    let value (EffectiveDate date) = date
-
-/// If two events occur at the exact same time, the order in which to apply them
-type EffectiveOrder = private EffectiveOrder of PositiveInt
-module EffectiveOrder =
-    let value (EffectiveOrder order) = PositiveInt.value order
-    let create order = 
-        PositiveInt.create order 
-        |> Result.map EffectiveOrder
-
+/// Name of the dog
 type Name = private Name of String50
 module Name =
     let value (Name name) = String50.value name
@@ -31,6 +22,7 @@ module Name =
         String50.create name 
         |> Result.map Name
 
+/// Bread of the dog
 type Breed = private Breed of String50
 module Breed =
     let value (Breed breed) = String50.value breed

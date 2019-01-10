@@ -3,7 +3,8 @@ source https://www.nuget.org/api/v2
 github ameier38/fsharp-common Result.fs
 github ameier38/fsharp-common SimpleType.fs
 github ameier38/fsharp-common DotEnv.fs
-nuget EventStore.ClientAPI.NetCore
+nuget EventStore.Client 5.0.0-rc1 rc
+nuget FSharp.Control.AsyncSeq
 nuget MinVer 1.0.0-beta.2 beta
 nuget Newtonsoft.Json
 nuget Suave

@@ -1,46 +1,18 @@
 namespace Dog
 
 open System
-open System.Text
-open Newtonsoft.Json
 open Ouroboros
-
-module String =
-    let toBytes (s:string) = s |> Encoding.UTF8.GetBytes
-    let fromBytes (bytes:byte[]) = bytes |> Encoding.UTF8.GetString
-
-module Json =
-    let serializeToJson (o:obj) =
-        try
-            JsonConvert.SerializeObject o
-            |> Ok
-        with ex ->
-            sprintf "could not serialize: %A\n%A" o ex
-            |> DogError.IO
-            |> Error
-    let serializeToBytes (o:obj) =
-        serializeToJson o
-        |> Result.map String.toBytes
-    let deserializeFromJson<'Object> (json:string) =
-        try
-            json
-            |> JsonConvert.DeserializeObject<'Object>
-            |> Ok
-        with ex ->
-            sprintf "could not deserialize: %A" ex
-            |> DogError.IO
-            |> Error
-    let deserializeFromBytes<'Object> (bytes:byte[]) =
-        bytes
-        |> String.fromBytes
-        |> deserializeFromJson<'Object>
 
 type DogDto =
     { name: string
       breed: string }
 module DogDto =
-    let serializeToBytes (dto:DogDto) = Json.serializeToBytes dto
-    let deserializeFromBytes = Json.deserializeFromBytes<DogDto>
+    let serializeToBytes (dto:DogDto) = 
+        Json.serializeToBytes dto
+        |> Result.mapError DogError
+    let deserializeFromBytes = 
+        Json.deserializeFromBytes<DogDto>
+        |> Result.mapError DogError
     let fromDomain (dog:Dog) =
         { name = Name.value dog.Name
           breed = Breed.value dog.Breed }
@@ -48,10 +20,10 @@ module DogDto =
         result {
             let! name = 
                 Name.create dto.name 
-                |> Result.mapError DogError.Validation
+                |> Result.mapError DogError
             let! breed = 
                 Breed.create dto.breed 
-                |> Result.mapError DogError.Validation
+                |> Result.mapError DogError
             return
                 { Name = name
                   Breed = breed }
@@ -64,8 +36,12 @@ type DogEventDto =
     | Woke
     | Played
 module DogEventDto =
-    let serializeToBytes (dto:DogEventDto) = Json.serializeToBytes dto
-    let deserializeFromBytes = Json.deserializeFromBytes<DogEventDto>
+    let serializeToBytes (dto:DogEventDto) = 
+        Json.serializeToBytes dto
+        |> Result.mapError DogError
+    let deserializeFromBytes = 
+        Json.deserializeFromBytes<DogEventDto>
+        |> Result.mapError DogError
     let fromDomain = function
         | DogEvent.Born dog ->
             dog
@@ -115,7 +91,9 @@ type DogStateDto =
     { state: string
       dog: DogDto option }
 module DogStateDto =
-    let serializeToBytes (dto:DogStateDto) = Json.serializeToBytes dto
+    let serializeToBytes (dto:DogStateDto) = 
+        Json.serializeToBytes dto
+        |> Result.mapError DogError
 
 type CreateDogCommandRequestDto =
     { dogId: Guid
@@ -124,7 +102,9 @@ type CreateDogCommandRequestDto =
       name: string
       breed: string }
 module CreateDogCommandRequestDto =
-    let deserialize = Json.deserializeFromBytes<CreateDogCommandRequestDto>
+    let deserialize = 
+        Json.deserializeFromBytes<CreateDogCommandRequestDto>
+        >> Result.mapError DogError
     let toDomain
         (mapOuroborosError:OuroborosError -> DogError) =
         fun dto ->

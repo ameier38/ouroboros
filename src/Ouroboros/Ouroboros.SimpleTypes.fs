@@ -25,7 +25,6 @@ module EntityType =
     let create entityType = 
         String50.create entityType 
         |> Result.map EntityType
-        |> Result.mapError OuroborosError
 
 /// Unique identifier for the entity.
 type EntityId = EntityId of Guid
@@ -49,7 +48,6 @@ module StreamStart =
     let create start = 
         PositiveLong.create start 
         |> Result.map StreamStart
-        |> Result.mapError OuroborosError
     let zero = StreamStart PositiveLong.zero
     let max = StreamStart PositiveLong.max
 
@@ -60,7 +58,6 @@ module StreamCount =
     let create cnt = 
         PositiveInt.create cnt 
         |> Result.map StreamCount
-        |> Result.mapError OuroborosError
     let one = StreamCount PositiveInt.one
     let max = StreamCount PositiveInt.max
 
@@ -76,7 +73,6 @@ module SpecificExpectedVersion =
     let create version =
         PositiveLong.create version
         |> Result.map SpecificExpectedVersion
-        |> Result.mapError OuroborosError
 
 /// Expected version of the event when writing to a stream.
 /// Used for optimistic concurrency check.
@@ -104,7 +100,6 @@ module EventNumber =
     let create number = 
         PositiveLong.create number 
         |> Result.map EventNumber
-        |> Result.mapError OuroborosError
 
 /// Friendly name for the type of event
 type EventType = private EventType of string
@@ -112,7 +107,6 @@ module EventType =
     let value (EventType eventType) = eventType
     let create eventType =
         ConstrainedType.createString EventType 50 eventType
-        |> Result.mapError OuroborosError
 
 /// Date at which event is effective in the domain
 type EffectiveDate = EffectiveDate of DateTime
@@ -126,4 +120,3 @@ module EffectiveOrder =
     let create order = 
         PositiveInt.create order 
         |> Result.map EffectiveOrder
-        |> Result.mapError OuroborosError

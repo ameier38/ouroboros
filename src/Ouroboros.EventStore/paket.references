@@ -1,5 +1,6 @@
 FSharp.Core
-EventStore.ClientAPI.NetCore
+EventStore.Client
+FSharp.Control.AsyncSeq
 File:Result.fs
 File:SimpleType.fs
 File:DotEnv.fs

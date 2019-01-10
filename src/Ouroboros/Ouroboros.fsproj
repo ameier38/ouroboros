@@ -18,7 +18,7 @@
     </Compile>
     <Compile Include="Ouroboros.SimpleTypes.fs" />
     <Compile Include="Ouroboros.PublicTypes.fs" />
-    <Compile Include="Ouroboros.Utils.fs" />
+    <Compile Include="Ouroboros.YoLo.fs" />
     <Compile Include="Ouroboros.Dto.fs" />
     <Compile Include="Ouroboros.fs" />
   </ItemGroup>

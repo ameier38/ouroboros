@@ -13,12 +13,22 @@ module EventMetaDto =
           DomainEventMeta = meta.DomainEventMeta }
     let toDomain (dto:EventMetaDto<'DomainEventMeta>) =
         result {
-            let effectiveDate = dto.EffectiveDate |> EffectiveDate
-            let! effectiveOrder = dto.EffectiveOrder |> EffectiveOrder.create
+            let effectiveDate = 
+                dto.EffectiveDate 
+                |> EffectiveDate
+            let! effectiveOrder = 
+                dto.EffectiveOrder 
+                |> EffectiveOrder.create
+                |> Result.mapError OuroborosError
             return
                 { EventMeta.EffectiveDate = effectiveDate
                   EffectiveOrder = effectiveOrder
                   DomainEventMeta = dto.DomainEventMeta }
         }
-    let serialize (dto:EventMetaDto<'DomainEventMeta>) = dto |> Json.serializeToBytes
-    let deserialize<'DomainEventMeta> = Json.deserializeFromBytes<EventMetaDto<'DomainEventMeta>>
+    let serialize (dto:EventMetaDto<'DomainEventMeta>) = 
+        dto 
+        |> Json.serializeToBytes
+        |> Result.mapError OuroborosError
+    let deserialize<'DomainEventMeta> = 
+        Json.deserializeFromBytes<EventMetaDto<'DomainEventMeta>>
+        >> Result.mapError OuroborosError

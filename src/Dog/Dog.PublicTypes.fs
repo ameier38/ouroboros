@@ -1,15 +1,11 @@
 namespace Dog
 
-type DogError = DogError of string
-
 type Dog =
     { Name: Name
       Breed: Breed }
 
 type DogEventMeta =
-    { Source: Source 
-      EffectiveDate: EffectiveDate
-      EffectiveOrder: EffectiveOrder }
+    { Source: Source }
 
 type DogEvent =
     | Born of Dog
@@ -17,6 +13,9 @@ type DogEvent =
     | Slept
     | Woke
     | Played
+
+type DogCommandMeta =
+    { Source: Source }
 
 type DogCommand =
     | Create of Dog
@@ -26,6 +25,7 @@ type DogCommand =
     | Play
 
 type DogState =
+    | Corrupted
     | NoDog
     | Bored
     | Hungry

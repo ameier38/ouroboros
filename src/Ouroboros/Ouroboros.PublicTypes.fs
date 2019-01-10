@@ -52,18 +52,18 @@ type Command<'DomainCommand,
 type ReadStream<'StoreError> = 
     StreamSlice 
      -> StreamId 
-     -> AsyncResult<SerializedRecordedEvent list, 'StoreError>
+     -> AsyncResult<SerializedRecordedEvent list,'StoreError>
 
 type ReadEntireStream<'StoreError> =
     StreamStart
      -> StreamId
-     -> AsyncResult<SerializedRecordedEvent list, 'StoreError>
+     -> AsyncResult<SerializedRecordedEvent list,'StoreError>
 
 type WriteStream<'StoreError> = 
     ExpectedVersion 
      -> SerializedEvent list 
      -> StreamId 
-     -> AsyncResult<unit, 'StoreError>
+     -> AsyncResult<unit,'StoreError>
 
 type Store<'StoreError> =
     { readStream: ReadStream<'StoreError>
@@ -74,18 +74,17 @@ type Load<'DomainEvent,
           'DomainEventMeta, 
           'DomainError> =
     EntityId
-     -> AsyncResult<RecordedEvent<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
+     -> AsyncResult<RecordedEvent<'DomainEvent,'DomainEventMeta> list,'DomainError>
 
 type Filter<'DomainEvent, 
             'DomainEventMeta> =
-    RecordedEvent<'DomainEvent, 'DomainEventMeta> list
-     -> RecordedEvent<'DomainEvent, 'DomainEventMeta>
-     -> bool
+    RecordedEvent<'DomainEvent,'DomainEventMeta> list
+     -> RecordedEvent<'DomainEvent,'DomainEventMeta> list
 
 type SortBy<'DomainEvent, 
             'DomainEventMeta, 
             'T when 'T : comparison> =
-    RecordedEvent<'DomainEvent, 'DomainEventMeta> 
+    RecordedEvent<'DomainEvent,'DomainEventMeta> 
      -> 'T
 
 type Commit<'DomainEvent, 
@@ -93,15 +92,15 @@ type Commit<'DomainEvent,
             'DomainError> = 
     EntityId 
      -> ExpectedVersion 
-     -> Event<'DomainEvent, 'DomainEventMeta> list
-     -> AsyncResult<unit, 'DomainError>
+     -> Event<'DomainEvent,'DomainEventMeta> list
+     -> AsyncResult<unit,'DomainError>
 
 type Apply<'DomainState, 
            'DomainEvent, 
            'DomainError> =
     'DomainState
      -> 'DomainEvent
-     -> Result<'DomainState, 'DomainError>
+     -> Result<'DomainState,'DomainError>
 
 type Execute<'DomainState, 
              'DomainCommand, 
@@ -110,8 +109,8 @@ type Execute<'DomainState,
              'DomainEventMeta, 
              'DomainError> =
     'DomainState
-     -> Command<'DomainCommand, 'DomainCommandMeta>
-     -> AsyncResult<Event<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
+     -> Command<'DomainCommand,'DomainCommandMeta>
+     -> AsyncResult<Event<'DomainEvent,'DomainEventMeta> list,'DomainError>
 
 type Handle<'DomainCommand, 
             'DomainCommandMeta, 
@@ -119,28 +118,28 @@ type Handle<'DomainCommand,
             'DomainEventMeta, 
             'DomainError> =
     EntityId
-     -> Command<'DomainCommand, 'DomainCommandMeta>
-     -> AsyncResult<Event<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
+     -> Command<'DomainCommand,'DomainCommandMeta>
+     -> AsyncResult<Event<'DomainEvent,'DomainEventMeta> list,'DomainError>
 
 type Replay<'DomainEvent, 
             'DomainEventMeta, 
             'DomainError> =
     EntityId
      -> AsDate
-     -> AsyncResult<RecordedEvent<'DomainEvent, 'DomainEventMeta> list, 'DomainError>
+     -> AsyncResult<RecordedEvent<'DomainEvent,'DomainEventMeta> list,'DomainError>
 
 type Reconstitute<'DomainEvent, 
                   'DomainEventMeta, 
                   'DomainState, 
                   'DomainError> =
-    RecordedEvent<'DomainEvent, 'DomainEventMeta> list
-     -> Result<'DomainState, 'DomainError>
+    RecordedEvent<'DomainEvent,'DomainEventMeta> list
+     -> Result<'DomainState,'DomainError>
 
 type Repository<'DomainEvent, 
                 'DomainEventMeta, 
                 'DomainError> =
-    { load: Load<'DomainEvent, 'DomainEventMeta, 'DomainError>
-      commit: Commit<'DomainEvent, 'DomainEventMeta, 'DomainError> }
+    { load: Load<'DomainEvent,'DomainEventMeta,'DomainError>
+      commit: Commit<'DomainEvent,'DomainEventMeta,'DomainError> }
 
 type Aggregate<'DomainState,
                'DomainCommand, 
@@ -160,9 +159,9 @@ type CommandHandler<'DomainCommand,
                     'DomainEvent, 
                     'DomainEventMeta,
                     'DomainError> =
-    { handle: Handle<'DomainCommand, 'DomainCommandMeta, 'DomainEvent, 'DomainEventMeta, 'DomainError> }
+    { handle: Handle<'DomainCommand,'DomainCommandMeta,'DomainEvent,'DomainEventMeta,'DomainError> }
 
-type QueryHandler<'DomainState, 'DomainEvent, 'DomainEventMeta, 'DomainError> =
-    { replayAll: Replay<'DomainEvent, 'DomainEventMeta, 'DomainError>
-      replay: Replay<'DomainEvent, 'DomainEventMeta, 'DomainError>
-      reconstitute: Reconstitute<'DomainEvent, 'DomainEventMeta, 'DomainState, 'DomainError> }
+type QueryHandler<'DomainState,'DomainEvent,'DomainEventMeta,'DomainError> =
+    { replayAll: Replay<'DomainEvent,'DomainEventMeta,'DomainError>
+      replay: Replay<'DomainEvent,'DomainEventMeta,'DomainError>
+      reconstitute: Reconstitute<'DomainEvent,'DomainEventMeta,'DomainState,'DomainError> }

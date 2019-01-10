@@ -4,6 +4,13 @@ open DotEnv
 open System
 open SimpleType
 open EventStore.ClientAPI
+open FSharp.Control
+
+type EventStoreError = EventStoreError of string
+
+type ReadEvents = StreamId -> StreamSlice -> Async<StreamEventsSlice>
+
+type WriteEvents = StreamId -> Ouroboros.ExpectedVersion -> EventData[] -> Async<WriteResult>
 
 type EventStoreConfig =
     { Uri: Uri }
@@ -34,10 +41,20 @@ module EventStoreConfig =
 module SerializedRecordedEvent =
     let fromResolvedEvent (resolvedEvent:ResolvedEvent) = 
         result {
-            let eventId = EventId resolvedEvent.Event.EventId
-            let! eventNumber = resolvedEvent.Event.EventNumber |> EventNumber.create
-            let createdDate = resolvedEvent.Event.Created |> CreatedDate
-            let! eventType = resolvedEvent.Event.EventType |> EventType.create
+            let eventId = 
+                resolvedEvent.Event.EventId
+                |> EventId
+            let! eventNumber = 
+                resolvedEvent.Event.EventNumber 
+                |> EventNumber.create
+                |> Result.mapError EventStoreError
+            let createdDate = 
+                resolvedEvent.Event.Created 
+                |> CreatedDate
+            let! eventType = 
+                resolvedEvent.Event.EventType 
+                |> EventType.create
+                |> Result.mapError EventStoreError
             return
                 { SerializedRecordedEvent.Id = eventId
                   EventNumber = eventNumber
@@ -60,14 +77,6 @@ module ExpectedVersion =
         | EmptyStream -> EventStore.ClientAPI.ExpectedVersion.EmptyStream |> int64
         | StreamExists -> EventStore.ClientAPI.ExpectedVersion.StreamExists |> int64
         | ExpectedVersion.Specific version -> SpecificExpectedVersion.value version
-
-type EventStoreError = EventStoreError of string
-module EventStoreError =
-    let mapOuroborosError (OuroborosError error) = EventStoreError error
-
-type ReadEvents = StreamId -> StreamSlice -> Async<StreamEventsSlice>
-
-type WriteEvents = StreamId -> Ouroboros.ExpectedVersion -> EventData[] -> Async<WriteResult>
 
 let readEvents (conn:IEventStoreConnection) : ReadEvents =
     fun streamId streamSlice ->
@@ -94,24 +103,29 @@ let readStream (readEvents:ReadEvents) =
                 |> Array.map (SerializedRecordedEvent.fromResolvedEvent >> AsyncResult.ofResult)
                 |> Array.toList
                 |> AsyncResult.sequenceM
-                |> AsyncResult.mapError EventStoreError.mapOuroborosError
             return events
         }
 
 let readEntireStream (readEvents:ReadEvents) =
     fun streamStart streamId ->
+        let streamCountResult = StreamCount.create 1000
         let rec read streamStart =
             asyncResult {
-                let! streamCount = StreamCount.create 1000 |> AsyncResult.ofResult
+                let! streamCount = streamCountResult |> AsyncResult.ofResult
                 let streamSlice = StreamSlice (streamStart, streamCount)
-                let! slice = readEvents streamId streamSlice |> AsyncResult.ofAsync
                 return 
-                    seq {
-                        if slice.IsEndOfStream then
-                            yield! slice.Events
-                        else
-                            let newStreamStart = StreamStart.create slice.NextEventNumber |> AsyncResult.ofResult
-                            let eventsResult = newStreamStart |> AsyncResult.bind read |> Async.RunSynchronously
+                    asyncSeq {
+                        match! readEvents streamId streamSlice with
+                        | slice when slice.IsEndOfStream ->
+                            yield! slice.Events |> AsyncSeq.ofSeq
+                        | slice ->
+                            let newStreamStart = 
+                                slice.NextEventNumber 
+                                |> StreamStart.create 
+                                |> AsyncResult.ofResult
+                            let! eventsResult = 
+                                newStreamStart 
+                                |> AsyncResult.bind read
                             match eventsResult with
                             | Ok newEvents -> yield! newEvents
                             | (Error (OuroborosError e)) -> failwith e
