@@ -2,13 +2,13 @@ module Dog.Api
 
 open Dog
 open Dog.Implementation
+open Ouroboros
 open Suave
 
-let executeCommand dogId domainCommand =
+let executeCommand dogId dogCommand =
     asyncResult {
         let! commandHandler = commandHandlerResult |> AsyncResult.ofResult
-        let handle = commandHandler.handle dogId
-        return! handle [ domainCommand ]
+        return! commandHandler.handle dogId dogCommand
     }
 
 let createHandler (handle:byte [] -> AsyncResult<byte [], DogError>) : WebPart =
@@ -27,13 +27,14 @@ let handleGet (body:byte []) : AsyncResult<byte [], DogError> =
             |> AsyncResult.ofResult
         let! dto =
             body
-            |> GetRequestDto.deserialize
+            |> GetRequestDto.deserializeFromBytes
             |> AsyncResult.ofResult
-        let dogId, asOfDate =
+        let! getRequest =
             dto
             |> GetRequestDto.toDomain
+            |> AsyncResult.ofResult
         let! dogStateDto =
-            (dogId, asOfDate)
+            getRequest
             ||> Projection.dogState queryHandler
         let! data =
             dogStateDto
@@ -46,30 +47,31 @@ let handleCreate (body:byte []) =
     asyncResult {
         let! dto = 
             body 
-            |> CreateDogCommandRequestDto.deserialize
+            |> CreateDogCommandRequestDto.deserializeFromBytes
             |> AsyncResult.ofResult
-        let! dogId, domainCommand =
+        let! dogId, command =
             dto
-            |> CreateDogCommandRequestDto.toDomain DogError.mapOuroborosError
+            |> CreateDogCommandRequestDto.toDomain
             |> AsyncResult.ofResult
         let! events =
-            (dogId, domainCommand)
+            (dogId, command)
             ||> executeCommand
         return!
             events
             |> Json.serializeToBytes
+            |> Result.mapError DogError
             |> AsyncResult.ofResult
     }
 
-let handleCommand commandDto (body:byte []) =
+let handleCommand (commandDto:DogCommandDto) (body:byte []) =
     asyncResult {
         let! dto = 
             body 
-            |> DogCommandRequestDto.deserialize
+            |> DogCommandRequestDto.deserializeFromBytes
             |> AsyncResult.ofResult
         let! dogId, domainCommand =
             dto
-            |> DogCommandRequestDto.toDomain DogError.mapOuroborosError commandDto
+            |> DogCommandRequestDto.toDomain commandDto
             |> AsyncResult.ofResult
         let! events =
             (dogId, domainCommand)
@@ -77,5 +79,6 @@ let handleCommand commandDto (body:byte []) =
         return!
             events
             |> Json.serializeToBytes
+            |> Result.mapError DogError
             |> AsyncResult.ofResult
     }

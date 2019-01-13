@@ -3,14 +3,7 @@ module Ouroboros.Implementation
 
 let [<Literal>] ReversedEventType = "Reversed"
 
-module Event =
-    let create
-        (eventType:EventType) 
-        (domainEvent:'DomainEvent) 
-        (meta:EventMeta<'DomainEventMeta>) =
-        { Event.Type = eventType
-          Data = domainEvent
-          Meta = meta }
+module internal Event =
     let serialize 
         (event:Event<'DomainEvent, 'DomainEventMeta>)
         : Result<SerializedEvent, OuroborosError> =
@@ -32,23 +25,7 @@ module Event =
                   Meta = serializedEventMeta }
         }
 
-module EventMeta =
-    let create effectiveDate effectiveOrder domainEventMeta =
-        { EffectiveDate = effectiveDate
-          EffectiveOrder = effectiveOrder
-          DomainEventMeta = domainEventMeta }
-
-module Command =
-    let create (domainCommand:'DomainCommand) (meta:CommandMeta<'DomainCommandMeta>) =
-        { Data = domainCommand
-          Meta = meta}
-
-module CommandMeta =
-    let create effectiveDate domainCommandMeta =
-        { EffectiveDate = effectiveDate
-          DomainCommandMeta = domainCommandMeta }
-
-module SerializedRecordedEvent =
+module internal SerializedRecordedEvent =
     let deserialize<'DomainEvent,'DomainEventMeta> 
         : SerializedRecordedEvent -> Result<RecordedEvent<'DomainEvent,'DomainEventMeta>,OuroborosError> =
         fun ({ SerializedRecordedEvent.Id = eventId
@@ -75,7 +52,7 @@ module SerializedRecordedEvent =
                       Meta = eventMeta }
             }
 
-module ExpectedVersion =
+module internal ExpectedVersion =
     let create nEvents =
         match nEvents with
         | n when n = 0 -> NoStream |> Ok
@@ -89,7 +66,8 @@ module ExpectedVersion =
 module Repository =
     let create
         (store:Store<'StoreError>) 
-        (mapStoreError:'StoreError -> OuroborosError)
+        (convertStoreError:'StoreError -> 'DomainError)
+        (convertOuroborosError:OuroborosError -> 'DomainError)
         (entityType:EntityType) =
         let createStreamId = StreamId.create entityType
         let load entityId = 
@@ -99,11 +77,12 @@ module Repository =
                     entityId
                     |> createStreamId
                     |> store.readEntireStream streamStart
-                    |> AsyncResult.mapError mapStoreError
+                    |> AsyncResult.mapError convertStoreError
                 return!
                     serializedRecordedEvents
                     |> List.map SerializedRecordedEvent.deserialize<'DomainEvent,'DomainEventMeta>
                     |> Result.sequence
+                    |> Result.mapError convertOuroborosError
                     |> AsyncResult.ofResult
             }
         let commit entityId expectedVersion events = 
@@ -112,12 +91,13 @@ module Repository =
                     events
                     |> List.map Event.serialize
                     |> Result.sequence
+                    |> Result.mapError convertOuroborosError
                     |> AsyncResult.ofResult
                 return!
                     entityId
                     |> createStreamId
                     |> store.writeStream expectedVersion serializedEvents
-                    |> AsyncResult.mapError mapStoreError
+                    |> AsyncResult.mapError convertStoreError
             }
         { load = load
           commit = commit }
@@ -126,51 +106,46 @@ module QueryHandler =
     let create
         (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainCommandMeta,'DomainEvent,'DomainEventMeta,'DomainError,'T>)
         (repo:Repository<'DomainEvent,'DomainEventMeta,'DomainError>) =
-        let apply = Result.bind2 aggregate.apply
-        let zero = aggregate.zero |> Ok
         let replayAll
             (entityId:EntityId)
-            (asDate:AsDate) =
+            (observationDate:ObservationDate) =
             asyncResult {
                 let! recordedEvents = repo.load entityId
-                let onOrBeforeAsDate ({ RecordedEvent.CreatedDate = (CreatedDate createdDate); 
-                                        Meta = { EffectiveDate = (EffectiveDate effectiveDate) }}) =
-                    match asDate with
+                let onOrBeforeObservationDate 
+                    ({ RecordedEvent.CreatedDate = (CreatedDate createdDate) 
+                       Meta = { EffectiveDate = (EffectiveDate effectiveDate) }}) =
+                    match observationDate with
                     | Latest -> true
-                    | AsOf (AsOfDate asOfDate) ->
+                    | AsOf asOfDate ->
                         createdDate <= asOfDate
-                    | AsAt (AsAtDate asAtDate) ->
+                    | AsAt asAtDate ->
                         effectiveDate <= asAtDate
                 return
                     recordedEvents
-                    |> List.filter onOrBeforeAsDate
+                    |> List.filter onOrBeforeObservationDate
             }
         let replay
             (entityId:EntityId)
-            (asDate:AsDate) =
+            (observationDate:ObservationDate) =
             asyncResult {
-                let! recordedEvents = replayAll entityId asDate
+                let! recordedEvents = replayAll entityId observationDate
                 return
                     recordedEvents
                     |> aggregate.filter
             }
         let reconstitute
             (recordedEvents:RecordedEvent<'DomainEvent,'DomainEventMeta> list) =
-            result {
-                return! 
-                    recordedEvents
-                    |> List.sortBy aggregate.sortBy
-                    |> List.map (fun e -> e.Data)
-                    |> List.map Ok
-                    |> List.fold apply zero
-            }
+            recordedEvents
+            |> List.sortBy aggregate.sortBy
+            |> List.map (fun e -> e.Data)
+            |> List.fold aggregate.apply aggregate.zero
         { replayAll = replayAll
           replay = replay
           reconstitute = reconstitute }
 
 module CommandHandler =
     let create
-        (mapOuroborosError:OuroborosError -> 'DomainError)
+        (convertOuroborosError:OuroborosError -> 'DomainError)
         (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainCommandMeta,'DomainEvent,'DomainEventMeta,'DomainError,'T>)
         (repo:Repository<'DomainEvent,'DomainEventMeta,'DomainError>) =
         let handle 
@@ -185,14 +160,13 @@ module CommandHandler =
                     recordedEvents 
                     |> List.length 
                     |> ExpectedVersion.create
-                    |> Result.mapError mapOuroborosError
+                    |> Result.mapError convertOuroborosError
                     |> AsyncResult.ofResult
-                let! state =
+                let state =
                     recordedEvents
                     |> List.filter onOrBeforeEffectiveDate
                     |> aggregate.filter
                     |> queryHandler.reconstitute
-                    |> AsyncResult.ofResult
                 let! newEvents = aggregate.execute state command
                 do! repo.commit entityId expectedVersion newEvents
                 return newEvents

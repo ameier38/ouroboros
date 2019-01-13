@@ -1,6 +1,6 @@
 module Ouroboros.EventStore
 
-open DotEnv
+open Env
 open System
 open SimpleType
 open EventStore.ClientAPI
@@ -111,7 +111,9 @@ let readEntireStream (readEvents:ReadEvents) =
         let streamCountResult = StreamCount.create 1000
         let rec read streamStart =
             asyncResult {
-                let! streamCount = streamCountResult |> AsyncResult.ofResult
+                let! streamCount = 
+                    streamCountResult 
+                    |> AsyncResult.ofResult
                 let streamSlice = StreamSlice (streamStart, streamCount)
                 return 
                     asyncSeq {
@@ -128,18 +130,17 @@ let readEntireStream (readEvents:ReadEvents) =
                                 |> AsyncResult.bind read
                             match eventsResult with
                             | Ok newEvents -> yield! newEvents
-                            | (Error (OuroborosError e)) -> failwith e
+                            | (Error e) -> failwith e
                     }
             }
         let transform recordedEvents =
             recordedEvents
-            |> Seq.map (SerializedRecordedEvent.fromResolvedEvent >> AsyncResult.ofResult)
-            |> Seq.toList
+            |> AsyncSeq.map (SerializedRecordedEvent.fromResolvedEvent >> AsyncResult.ofResult)
+            |> AsyncSeq.toList
             |> AsyncResult.sequenceM
         read streamStart
+        |> AsyncResult.mapError EventStoreError
         |> AsyncResult.bind transform
-        |> AsyncResult.mapError EventStoreError.mapOuroborosError
-        
 
 let writeStream (writeEvents:WriteEvents) =
     fun expectedVersion events streamId ->

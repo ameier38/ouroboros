@@ -1,4 +1,3 @@
-/// Utilities. Naming inspired by haf/YoLo
 namespace Ouroboros
 
 open System.Text

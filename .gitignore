@@ -11,5 +11,5 @@ packages
 paket-files
 temp
 
-template
-build
+### FAKE ###
+.fake

@@ -2,10 +2,15 @@ namespace Ouroboros
 
 open System
 
-type AsDate =
+/// `AsOf` means as it was or will be on and after that date.
+/// Specifically, include events whose `CreatedDate` <= `ObservationDate`.
+/// `AsAt` means as it is at that particular time only. It implies there may be changes.
+/// Specifically, include events whose `EffectiveDate` <= `ObservationDate`. 
+/// `Latest` means as it currently is. Specifically, include all all events in the stream.
+type ObservationDate =
     | Latest
-    | AsOf of AsOfDate
-    | AsAt of AsAtDate
+    | AsOf of DateTime
+    | AsAt of DateTime
 
 type EventMeta<'DomainEventMeta> =
     { EffectiveDate: EffectiveDate
@@ -96,11 +101,10 @@ type Commit<'DomainEvent,
      -> AsyncResult<unit,'DomainError>
 
 type Apply<'DomainState, 
-           'DomainEvent, 
-           'DomainError> =
+           'DomainEvent> =
     'DomainState
      -> 'DomainEvent
-     -> Result<'DomainState,'DomainError>
+     -> 'DomainState
 
 type Execute<'DomainState, 
              'DomainCommand, 
@@ -125,15 +129,14 @@ type Replay<'DomainEvent,
             'DomainEventMeta, 
             'DomainError> =
     EntityId
-     -> AsDate
+     -> ObservationDate
      -> AsyncResult<RecordedEvent<'DomainEvent,'DomainEventMeta> list,'DomainError>
 
 type Reconstitute<'DomainEvent, 
                   'DomainEventMeta, 
-                  'DomainState, 
-                  'DomainError> =
+                  'DomainState> =
     RecordedEvent<'DomainEvent,'DomainEventMeta> list
-     -> Result<'DomainState,'DomainError>
+     -> 'DomainState
 
 type Repository<'DomainEvent, 
                 'DomainEventMeta, 
@@ -151,7 +154,7 @@ type Aggregate<'DomainState,
     { zero: 'DomainState 
       filter: Filter<'DomainEvent,'DomainEventMeta>
       sortBy: SortBy<'DomainEvent,'DomainEventMeta,'T>
-      apply: Apply<'DomainState,'DomainEvent,'DomainError>
+      apply: Apply<'DomainState,'DomainEvent>
       execute: Execute<'DomainState,'DomainCommand,'DomainCommandMeta,'DomainEvent,'DomainEventMeta,'DomainError> }
 
 type CommandHandler<'DomainCommand, 
@@ -164,4 +167,4 @@ type CommandHandler<'DomainCommand,
 type QueryHandler<'DomainState,'DomainEvent,'DomainEventMeta,'DomainError> =
     { replayAll: Replay<'DomainEvent,'DomainEventMeta,'DomainError>
       replay: Replay<'DomainEvent,'DomainEventMeta,'DomainError>
-      reconstitute: Reconstitute<'DomainEvent,'DomainEventMeta,'DomainState,'DomainError> }
+      reconstitute: Reconstitute<'DomainEvent,'DomainEventMeta,'DomainState> }

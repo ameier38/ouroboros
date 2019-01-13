@@ -5,74 +5,70 @@ open Ouroboros
 open Ouroboros.EventStore
 
 type Filter =
-    
+    RecordedEvent<DogEventDto, DogEventMetaDto> list
+     -> RecordedEvent<DogEventDto, DogEventMetaDto> list
 
 type Apply =
     DogState
-     -> DogEvent
-     -> Result<DogState, DogError>
+     -> DogEventDto
+     -> DogState
 
 type Execute =
     DogState
-     -> DomainCommand<DogCommand>
-     -> AsyncResult<DomainEvent<DogEvent> list, DogError>
+     -> Command<DogCommand, DogCommandMeta>
+     -> AsyncResult<Event<DogEventDto, DogEventMetaDto> list, DogError>
 
 module DogError =
-    let io s = DogError.IO s |> Error
-    let validation s = DogError.Validation s |> Error
-    let mapOuroborosError (OuroborosError error) = error |> DogError.Validation
-    let mapEventStoreError (EventStoreError error) = error |> DogError.IO
+    let convertOuroborosError (OuroborosError error) = error |> DogError
+    let convertEventStoreError (EventStoreError error) = error |> DogError
 
 module Dog =
     let create name breed =
         result {
-            let! name' = name |> Name.create |> Result.mapError DogError.Validation
-            let! breed' = breed |> Breed.create |> Result.mapError DogError.Validation
+            let! name' = name |> Name.create |> Result.mapError DogError
+            let! breed' = breed |> Breed.create |> Result.mapError DogError
             return
                 { Name = name'
                   Breed = breed' }
         }
 
-module DogEvent =
-    let serialize event =
-        event
-        |> DogEventDto.fromDomain
-        |> DogEventDto.serializeToBytes
-    let deserialize bytes =
-        bytes
-        |> DogEventDto.deserializeFromBytes
-        |> Result.bind DogEventDto.toDomain
+module DogEventMeta =
+    let create source =
+        { DogEventMeta.EventSource = source }
+
+module DogCommandMeta =
+    let create source =
+        { DogCommandMeta.CommandSource = source }
 
 module Apply =
-    let success state = state |> Ok
-    let fail message = message |> DogError.validation
     let born _ = function
-        | NoDog -> Hungry |> success
-        | _ -> "dog cannot be born; dog already exists" |> fail
+        | NoDog -> Hungry
+        | _ -> "dog cannot be born; dog already exists" |> Corrupt
     let ate = function
-        | NoDog -> "dog cannot eat; dog does not exist" |> fail
-        | Hungry -> Bored |> success
-        | state -> sprintf "dog cannot eat in state:\n%A" state |> fail
+        | NoDog -> "dog cannot eat; dog does not exist" |> Corrupt
+        | Hungry -> Bored
+        | state -> sprintf "dog cannot eat in state:\n%A" state |> Corrupt
     let slept = function
-        | NoDog -> "dog cannot sleep; dog does not exist" |> fail
-        | Tired -> Asleep |> success
-        | state -> sprintf "dog cannot sleep in state: \n%A" state |> fail
+        | NoDog -> "dog cannot sleep; dog does not exist" |> Corrupt
+        | Tired -> Asleep
+        | state -> sprintf "dog cannot sleep in state: \n%A" state |> Corrupt
     let woke = function
-        | NoDog -> "dog cannot wake; dog does not exist" |> fail
-        | Asleep -> Hungry |> success
-        | state -> sprintf "dog cannot wake in state: \n%A" state |> fail
+        | NoDog -> "dog cannot wake; dog does not exist" |> Corrupt
+        | Asleep -> Hungry
+        | state -> sprintf "dog cannot wake in state: \n%A" state |> Corrupt
     let played = function
-        | NoDog -> "dog cannot play; dog does not exist" |> fail
-        | Bored -> Tired |> success
-        | state -> sprintf "dog cannot play in state: \n%A" state |> fail
+        | NoDog -> "dog cannot play; dog does not exist" |> Corrupt
+        | Bored -> Tired
+        | state -> sprintf "dog cannot play in state: \n%A" state |> Corrupt
 
-module DomainEvent =
+module Event =
     let createEffectiveOrder order =
         order
         |> EffectiveOrder.create
-        |> Result.mapError DogError.mapOuroborosError
+        |> Result.mapError DogError
 
     let getEffectiveOrder = function
+        | DogEvent.Reversed _ -> createEffectiveOrder 0
         | DogEvent.Born _ -> createEffectiveOrder 1
         | DogEvent.Ate -> createEffectiveOrder 2
         | DogEvent.Slept -> createEffectiveOrder 3
@@ -80,38 +76,50 @@ module DomainEvent =
         | DogEvent.Played -> createEffectiveOrder 5
     let createEventType eventType =
         eventType
-        |> DomainEventType.create
-        |> Result.mapError DogError.mapOuroborosError
+        |> EventType.create
+        |> Result.mapError DogError
     let getEventType = function
+        | DogEvent.Reversed _ -> createEventType ReversedEventType
         | DogEvent.Born _ -> createEventType "Born"
         | DogEvent.Ate -> createEventType "Ate"
         | DogEvent.Slept -> createEventType "Slept"
         | DogEvent.Woke -> createEventType "Woke"
         | DogEvent.Played -> createEventType "Played"
-    let fromDogEvent source effectiveDate =
-        fun dogEvent ->
+    let fromDogEvent (source:Source) (effectiveDate:EffectiveDate) =
+        fun (dogEvent:DogEvent) ->
             result {
                 let! effectiveOrder = getEffectiveOrder dogEvent 
-                let eventMeta = 
-                    (effectiveDate, effectiveOrder, source)
-                    |||> DomainEventMeta.create
+                let dogEventDto =
+                    dogEvent
+                    |> DogEventDto.fromDomain
+                let dogEventMetaDto = 
+                    source 
+                    |> DogEventMeta.create
+                    |> DogEventMetaDto.fromDomain
+                let eventMeta =
+                    { EventMeta.EffectiveDate = effectiveDate
+                      EffectiveOrder = effectiveOrder
+                      DomainEventMeta = dogEventMetaDto }
                 let! eventType = getEventType dogEvent
                 return 
-                    { DomainEvent.Type = eventType
-                      Data = dogEvent
+                    { Event.Type = eventType
+                      Data = dogEventDto
                       Meta = eventMeta }
             }
 
 module Execute =
     let success source effectiveDate event = 
         event
-        |> DomainEvent.fromDogEvent source effectiveDate
+        |> Event.fromDogEvent source effectiveDate
         |> Result.map List.singleton
         |> AsyncResult.ofResult
     let fail message =
         message
-        |> DogError.Validation
+        |> DogError
         |> AsyncResult.ofError
+    let reverse source effectiveDate eventNumber (_:DogState) =
+        DogEvent.Reversed eventNumber
+        |> success source effectiveDate
     let create source effectiveDate dog = function
         | NoDog ->
             DogEvent.Born dog 
@@ -157,10 +165,14 @@ module Execute =
 
 let execute : Execute =
     fun state command ->
-        let { DomainCommand.Source = source 
-              EffectiveDate = effectiveDate 
-              Data = commandData } = command
+        let { Command.Data = commandData 
+              Meta = commandMeta } = command
+        let { EffectiveDate = effectiveDate
+              DomainCommandMeta = dogCommandMeta } = commandMeta
+        let { DogCommandMeta.CommandSource = source } = dogCommandMeta
         match commandData with
+        | DogCommand.Reverse eventNumber ->
+            Execute.reverse source effectiveDate eventNumber state
         | DogCommand.Create dog -> 
             Execute.create source effectiveDate dog state
         | DogCommand.Eat ->
@@ -172,19 +184,24 @@ let execute : Execute =
         | DogCommand.Play ->
             Execute.play source effectiveDate state
 let apply : Apply =
-    fun state -> function
-        | DogEvent.Born dog -> Apply.born dog state
-        | DogEvent.Ate -> Apply.ate state
-        | DogEvent.Slept -> Apply.slept state
-        | DogEvent.Woke -> Apply.woke state
-        | DogEvent.Played -> Apply.played state
-
-let serializer =
-    { serialize = DogEvent.serialize
-      deserialize = DogEvent.deserialize }
+    fun state dogEventDto ->
+        dogEventDto
+        |> DogEventDto.toDomain
+        |> function
+           | Ok dogEventDto ->
+                match dogEventDto with 
+                | DogEvent.Reversed _ -> state
+                | DogEvent.Born dog -> Apply.born dog state
+                | DogEvent.Ate -> Apply.ate state
+                | DogEvent.Slept -> Apply.slept state
+                | DogEvent.Woke -> Apply.woke state
+                | DogEvent.Played -> Apply.played state
+           | Error (DogError err) -> err |> Corrupt
 
 let aggregate =
     { zero = NoDog
+      filter = Defaults.filter
+      sortBy = Defaults.sortBy
       apply = apply
       execute = execute }
 
@@ -192,18 +209,18 @@ let repoResult =
     result {
         let! config = 
             EventStoreConfig.load () 
-            |> Result.mapError DogError.IO
+            |> Result.mapError DogError
         let store = eventStore config.Uri
         let! entityType = 
             EntityType.create "dog" 
-            |> Result.mapError DogError.mapOuroborosError
-        let mapError err = DogError.Validation err
+            |> Result.mapError DogError
+        let convertStoreError (EventStoreError err) = err |> DogError
+        let convertOuroborosError (OuroborosError err) = err |> DogError
         let repo = 
             Repository.create 
                 store 
-                DogError.mapOuroborosError
-                DogError.mapEventStoreError 
-                serializer 
+                convertStoreError
+                convertOuroborosError
                 entityType
         return repo
     }
@@ -217,5 +234,5 @@ let queryHandlerResult =
 let commandHandlerResult =
     result {
         let! repo = repoResult
-        return CommandHandler.create DogError.mapOuroborosError aggregate repo
+        return CommandHandler.create DogError.convertOuroborosError aggregate repo
     }

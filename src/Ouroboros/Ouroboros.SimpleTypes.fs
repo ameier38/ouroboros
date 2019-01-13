@@ -8,16 +8,6 @@ type OuroborosError = OuroborosError of string
 module OuroborosError =
     let value (OuroborosError error) = error
 
-/// Date which is greater than or equal to the events' `CreatedDate`
-type AsOfDate = AsOfDate of DateTime
-module AsOfDate =
-    let value (AsOfDate asOfDate) = asOfDate
-
-/// Date which is greater than or equal to the events' `EffectiveDate` 
-type AsAtDate = AsAtDate of DateTime
-module AsAtDate =
-    let value (AsAtDate asAtDate) = asAtDate
-
 /// Type of entity (read: aggregate)
 type EntityType = private EntityType of String50
 module EntityType =

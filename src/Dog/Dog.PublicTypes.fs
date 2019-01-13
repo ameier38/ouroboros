@@ -1,13 +1,16 @@
 namespace Dog
 
+open Ouroboros
+
 type Dog =
     { Name: Name
       Breed: Breed }
 
 type DogEventMeta =
-    { Source: Source }
+    { EventSource: Source }
 
 type DogEvent =
+    | Reversed of EventNumber
     | Born of Dog
     | Ate
     | Slept
@@ -15,9 +18,10 @@ type DogEvent =
     | Played
 
 type DogCommandMeta =
-    { Source: Source }
+    { CommandSource: Source }
 
 type DogCommand =
+    | Reverse of EventNumber
     | Create of Dog
     | Eat
     | Sleep
@@ -25,7 +29,7 @@ type DogCommand =
     | Play
 
 type DogState =
-    | Corrupted
+    | Corrupt of string
     | NoDog
     | Bored
     | Hungry

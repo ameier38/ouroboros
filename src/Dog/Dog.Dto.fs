@@ -10,8 +10,8 @@ module DogDto =
     let serializeToBytes (dto:DogDto) = 
         Json.serializeToBytes dto
         |> Result.mapError DogError
-    let deserializeFromBytes = 
-        Json.deserializeFromBytes<DogDto>
+    let deserializeFromBytes (bytes:byte []) = 
+        Json.deserializeFromBytes<DogDto> bytes
         |> Result.mapError DogError
     let fromDomain (dog:Dog) =
         { name = Name.value dog.Name
@@ -29,39 +29,73 @@ module DogDto =
                   Breed = breed }
         }
 
+type DogEventMetaDto =
+    { EventSource: string }
+module DogEventMetaDto =
+    let toDomain (dto:DogEventMetaDto) =
+        result {
+            let! source = 
+                dto.EventSource 
+                |> Source.create
+                |> Result.mapError DogError
+            return
+                { DogEventMeta.EventSource = source }
+        }
+
+    let fromDomain (meta:DogEventMeta) =
+        { EventSource = meta.EventSource |> Source.value }
+
 type DogEventDto =
+    | Reversed of int64
     | Born of DogDto
     | Ate
     | Slept
     | Woke
     | Played
 module DogEventDto =
-    let serializeToBytes (dto:DogEventDto) = 
-        Json.serializeToBytes dto
-        |> Result.mapError DogError
-    let deserializeFromBytes = 
-        Json.deserializeFromBytes<DogEventDto>
-        |> Result.mapError DogError
     let fromDomain = function
+        | DogEvent.Reversed eventNumber ->
+            eventNumber  
+            |> EventNumber.value
+            |> Reversed
         | DogEvent.Born dog ->
             dog
             |> DogDto.fromDomain
-            |> DogEventDto.Born
-        | DogEvent.Ate -> DogEventDto.Ate
-        | DogEvent.Slept -> DogEventDto.Slept
-        | DogEvent.Woke -> DogEventDto.Woke
-        | DogEvent.Played -> DogEventDto.Played
+            |> Born
+        | DogEvent.Ate -> Ate
+        | DogEvent.Slept -> Slept
+        | DogEvent.Woke -> Woke
+        | DogEvent.Played -> Played
     let toDomain = function
-        | DogEventDto.Born dogDto ->
+        | Reversed eventNumber ->
+            eventNumber
+            |> EventNumber.create
+            |> Result.map DogEvent.Reversed
+            |> Result.mapError DogError
+        | Born dogDto ->
             dogDto
             |> DogDto.toDomain
             |> Result.map DogEvent.Born
-        | DogEventDto.Ate -> DogEvent.Ate |> Ok
-        | DogEventDto.Slept -> DogEvent.Slept |> Ok
-        | DogEventDto.Woke -> DogEvent.Woke |> Ok
-        | DogEventDto.Played -> DogEvent.Played |> Ok
+        | Ate -> DogEvent.Ate |> Ok
+        | Slept -> DogEvent.Slept |> Ok
+        | Woke -> DogEvent.Woke |> Ok
+        | Played -> DogEvent.Played |> Ok
+
+type DogCommandMetaDto =
+    { CommandSource: string }
+module DogCommandMetaDto =
+    let toDomain (dto:DogCommandMetaDto) =
+        result {
+            let! source = 
+                dto.CommandSource 
+                |> Source.create
+                |> Result.mapError DogError
+            return
+                { DogCommandMeta.CommandSource = source }
+        }
 
 type DogCommandDto =
+    | Reverse of int64
     | Create of DogDto
     | Eat
     | Sleep
@@ -69,6 +103,10 @@ type DogCommandDto =
     | Play
 module DogCommandDto =
     let fromDomain = function
+        | DogCommand.Reverse eventNumber ->
+            eventNumber
+            |> EventNumber.value
+            |> Reverse
         | DogCommand.Create dog -> 
             dog
             |> DogDto.fromDomain
@@ -78,6 +116,11 @@ module DogCommandDto =
         | DogCommand.Wake -> Wake
         | DogCommand.Play -> Play
     let toDomain = function
+        | Reverse eventNumber ->
+            eventNumber
+            |> EventNumber.create
+            |> Result.map DogCommand.Reverse
+            |> Result.mapError DogError
         | Create dogDto ->
             dogDto
             |> DogDto.toDomain
@@ -102,47 +145,86 @@ type CreateDogCommandRequestDto =
       name: string
       breed: string }
 module CreateDogCommandRequestDto =
-    let deserialize = 
-        Json.deserializeFromBytes<CreateDogCommandRequestDto>
-        >> Result.mapError DogError
-    let toDomain
-        (mapOuroborosError:OuroborosError -> DogError) =
-        fun dto ->
-            result {
-                let dogId = dto.dogId |> EntityId
-                let! command =
-                    { DogDto.name = dto.name
-                      breed = dto.breed }
-                    |> DogCommandDto.Create
-                    |> DogCommandDto.toDomain
-                let! domainCommand =
-                    (dto.source, dto.effectiveDate, command)
-                    |||> Command.createDomainCommand mapOuroborosError
-                return dogId, domainCommand
-            }
+    let deserializeFromBytes (bytes:byte []) = 
+        bytes
+        |> Json.deserializeFromBytes<CreateDogCommandRequestDto>
+        |> Result.mapError DogError
+    let toDomain (dto:CreateDogCommandRequestDto) =
+        result {
+            let dogId = dto.dogId |> EntityId
+            let effectiveDate = dto.effectiveDate |> EffectiveDate
+            let! dogCommandMeta =
+                { CommandSource = dto.source }
+                |> DogCommandMetaDto.toDomain
+            let commandMeta =
+                { EffectiveDate = effectiveDate
+                  DomainCommandMeta = dogCommandMeta }
+            let! dogCommand =
+                { DogDto.name = dto.name
+                  breed = dto.breed }
+                |> DogCommandDto.Create
+                |> DogCommandDto.toDomain
+            let command =
+                { Data = dogCommand
+                  Meta = commandMeta }
+            return dogId, command
+        }
 
 type DogCommandRequestDto =
     { dogId: Guid
       source: string
       effectiveDate: DateTime }
 module DogCommandRequestDto =
-    let deserialize = Json.deserializeFromBytes<DogCommandRequestDto>
+    let deserializeFromBytes (bytes:byte []) = 
+        bytes
+        |> Json.deserializeFromBytes<DogCommandRequestDto>
+        |> Result.mapError DogError
     let toDomain 
-        (mapOuroborosError:OuroborosError -> DogError) =
-        fun commandDto dto ->
+        (commandDto:DogCommandDto) =
+        fun dto ->
             result {
                 let dogId = dto.dogId |> EntityId
-                let! command = commandDto |> DogCommandDto.toDomain
-                let! domainCommand =
-                    (dto.source, dto.effectiveDate, command)
-                    |||> Command.createDomainCommand mapOuroborosError
-                return dogId, domainCommand
+                let effectiveDate = dto.effectiveDate |> EffectiveDate
+                let! dogCommandMeta =
+                    { CommandSource = dto.source }
+                    |> DogCommandMetaDto.toDomain
+                let commandMeta =
+                    { CommandMeta.EffectiveDate = effectiveDate
+                      DomainCommandMeta = dogCommandMeta }
+                let! dogCommand = 
+                    commandDto 
+                    |> DogCommandDto.toDomain
+                let command =
+                    { Command.Data = dogCommand
+                      Meta = commandMeta }
+                return dogId, command
             }
 
 type GetRequestDto =
     { dogId: Guid
-      asOfDate: DateTime }
+      observationDate: DateTime
+      observationType: string }
 module GetRequestDto =
-    let deserialize = Json.deserializeFromBytes<GetRequestDto>
-    let toDomain dto =
-        (dto.dogId |> EntityId, dto.asOfDate |> AsOfDate)
+    let deserializeFromBytes (bytes:byte []) = 
+        bytes
+        |> Json.deserializeFromBytes<GetRequestDto>
+        |> Result.mapError DogError
+    let toDomain (dto:GetRequestDto) =
+        let dogId = dto.dogId |> EntityId
+        dto.observationType
+        |> fun ot -> ot.ToLower()
+        |> function
+           | obsType when obsType = "of" -> 
+                dto.observationDate 
+                |> AsOf 
+                |> fun obsDate -> (dogId, obsDate)
+                |> Ok
+           | obsType when obsType = "at" ->
+                dto.observationDate 
+                |> AsAt 
+                |> fun obsDate -> (dogId, obsDate)
+                |> Ok
+           | other -> 
+                sprintf "%s is not a valid observationType" other 
+                |> DogError 
+                |> Error

@@ -3,4 +3,4 @@ Suave
 Newtonsoft.Json
 File:Result.fs
 File:SimpleType.fs
-File:DotEnv.fs
+File:Env.fs

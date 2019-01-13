@@ -2,6 +2,7 @@ open Suave
 open Suave.Operators
 open Suave.Successful
 open Suave.Filters
+open Dog
 open Dog.Api
 
 let bytesToString (bytes:byte[]) =
@@ -16,6 +17,7 @@ let main argv =
         choose 
             [ POST >=> choose
                 [ path "/get" >=> createHandler handleGet
-                  path "/create" >=> createHandler handleCreate ] ]
+                  path "/create" >=> createHandler handleCreate
+                  path "/eat" >=> createHandler (handleCommand DogCommandDto.Eat) ] ]
     startWebServer defaultConfig api
     0

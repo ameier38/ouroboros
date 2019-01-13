@@ -11,38 +11,41 @@ let mealsFolder acc event =
     | _ -> acc
 
 let mealCount
-    (repo:Repository<DogEvent, DogError>) =
-    fun dogId ->
+    (queryHandler:QueryHandler<DogState,DogEventDto,DogEventMetaDto,DogError>) =
+    fun dogId observationDate ->
         asyncResult {
             let initialMealCount = 0
-            let! domainEvents = repo.load dogId
-            return
-                domainEvents
+            let! recordedEvents = 
+                (dogId, observationDate)
+                ||> queryHandler.replay 
+            return!
+                recordedEvents
                 |> List.map (fun e -> e.Data)
-                |> List.fold mealsFolder initialMealCount
+                |> List.map DogEventDto.toDomain
+                |> Result.sequence
+                |> Result.map (List.fold mealsFolder initialMealCount)
+                |> AsyncResult.ofResult
         }
 
 let dogState
-    (queryHandler:QueryHandler<DogState, DogEvent, DogError>) =
-    fun dogId asOfDate ->
+    (queryHandler:QueryHandler<DogState,DogEventDto,DogEventMetaDto,DogError>) =
+    fun dogId observationDate ->
         asyncResult {
-            let asOf = asOfDate |> AsOf.Specific
-            let! domainEvents =
-                (dogId, asOf)
+            let! recordedEvents =
+                (dogId, observationDate)
                 ||> queryHandler.replay 
-                |> AsyncResult.map (List.map RecordedDomainEvent.toDomainEvent)
-            let! currentState = 
-                queryHandler.reconstitute domainEvents
-                |> AsyncResult.ofResult
-            let isBornEvent = function
-                | {DomainEvent.Data = (DogEvent.Born dog)} -> Some dog
+            let currentState = 
+                recordedEvents
+                |> queryHandler.reconstitute
+            let chooseBornEvent = function
+                | {RecordedEvent.Data = (DogEventDto.Born dogDto)} -> Some dogDto
                 | _ -> None
             let dogDtoOpt = 
-                domainEvents
-                |> List.choose isBornEvent 
+                recordedEvents
+                |> List.choose chooseBornEvent 
                 |> function
                    | [] -> None
-                   | l -> l |> List.head |> DogDto.fromDomain |> Some
+                   | head::_ -> Some head
             return
                 { state = currentState.ToString()
                   dog = dogDtoOpt }
