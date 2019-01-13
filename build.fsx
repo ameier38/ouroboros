@@ -12,7 +12,10 @@ open Fake.IO.Globbing.Operators
 open System.IO
 
 let paketExe = Path.Combine(__SOURCE_DIRECTORY__, ".paket", "paket.exe")
-let outDirs = !! "src/*/out"
+let cleanDirs = 
+    !! "src/*/out"
+    ++ "src/*/bin"
+    ++ "src/*/obj"
 let ouroborosSolution = "Ouroboros.sln"
 
 Target.create "Echo" (fun _ ->
@@ -20,7 +23,7 @@ Target.create "Echo" (fun _ ->
 
 Target.create "Clean" (fun _ ->
     Trace.trace "Cleaning out directories..."
-    Shell.cleanDirs outDirs)
+    Shell.cleanDirs cleanDirs)
 
 Target.create "Install" (fun _ ->
     Trace.trace "Installing dependencies..."
@@ -40,6 +43,11 @@ Target.create "Publish" (fun _ ->
     DotNet.publish 
         (fun args -> { args with OutputPath = Some "out"})
         ouroborosSolution)
+
+Target.create "Serve" (fun _ ->
+    Trace.trace "Serving test API..."
+    DotNet.exec id "run" "src/Dog/Dog.fsproj"
+    |> ignore)
 
 open Fake.Core.TargetOperators
 
