@@ -17,6 +17,7 @@
       <Paket>True</Paket>
       <Link>paket-files/Env.fs</Link>
     </Compile>
+    <Compile Include="Dog.Infrastructure.fs" />
     <Compile Include="Dog.SimpleTypes.fs" />
     <Compile Include="Dog.PublicTypes.fs" />
     <Compile Include="Dog.Dto.fs" />

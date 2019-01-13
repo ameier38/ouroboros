@@ -3,102 +3,79 @@
 #r @"src\Dog\out\Dog.dll"
 #r @"src\Dog\out\Ouroboros.dll"
 
-// open System
-// open Expecto
-// open Ouroboros
-// open Dog
-// open Dog.Implementation
-// let benjiId = Guid.NewGuid() |> EntityId
+open System
+open Expecto
+open Ouroboros
+open Dog
+open Dog.Implementation
+let benjiId = Guid.NewGuid() |> EntityId
 
-// let minnieId = Guid.NewGuid() |> EntityId
+let minnieId = Guid.NewGuid() |> EntityId
 
-// let ragglesId = Guid.NewGuid() |> EntityId
+let ragglesId = Guid.NewGuid() |> EntityId
 
-// let benji = ("Benji", "Maltipoo") ||> Dog.create
-// let minnie = ("Minnie", "Shih Tzu") ||> Dog.create
-// let raggles = ("Raggles", "Mutt") ||> Dog.create
+let benji = ("Benji", "Maltipoo") ||> Dog.create
+let minnie = ("Minnie", "Shih Tzu") ||> Dog.create
+let raggles = ("Raggles", "Mutt") ||> Dog.create
 
-// let spreadTwo f tup = tup ||> f
-// let spreadThree f tup = tup |||> f
+let spreadTwo f tup = tup ||> f
+let spreadThree f tup = tup |||> f
 
-// let createCommand commandSource effectiveDate command = 
-//     result {
-//         let! commandSource' = commandSource |> Source.create
-//         let effectiveDate' = effectiveDate |> EffectiveDate
-//         let meta = { CommandSource = commandSource' }
-//         return
-//             { Command.Data = command
-//               Meta = meta }
-//     }
-    
+let createCommand commandSource effectiveDate (command:DogCommand) = 
+    result {
+        let! commandSource' = 
+            commandSource 
+            |> Source.create
+            |> Result.mapError DogError
+        let effectiveDate' = effectiveDate |> EffectiveDate
+        let dogCommandMeta = { CommandSource = commandSource' }
+        let meta = { EffectiveDate = effectiveDate'; DomainCommandMeta = dogCommandMeta }
+        return
+            { Command.Data = command
+              Meta = meta }
+    }
 
-// let createReversedCommand commandSource eventNumber =
-//     result {
-//         let! commandSource' = commandSource |> Source.create
-//         let! eventNumber' = eventNumber |> EventNumber.create
-//         return
-//     }
+let benjiCommands =
+    result {
+        let! benji' = benji
+        return!
+            [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create benji')
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
+              ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) 
+              ("test", DateTime(2018, 8, 30, 3, 0, 0), DogCommand.Sleep) 
+              ("test", DateTime(2018, 8, 30, 4, 0, 0), DogCommand.Wake) 
+              ("test", DateTime(2018, 8, 30, 5, 0, 0), DogCommand.Eat) ]
+            |> List.map (spreadThree createCommand)
+            |> Result.sequence
+    }
 
-// let benjiCommands =
-//     result {
-//         let! benji' = benji
-//         return!
-//             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create benji')
-//               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
-//               ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) 
-//               ("test", DateTime(2018, 8, 30, 3, 0, 0), DogCommand.Sleep) 
-//               ("test", DateTime(2018, 8, 30, 4, 0, 0), DogCommand.Wake) 
-//               ("test", DateTime(2018, 8, 30, 5, 0, 0), DogCommand.Eat) ]
-//             |> List.map (spreadThree createDomainCommand')
-//             |> Result.sequence
-//     }
+let minnieCommands =
+    result {
+        let! minnie' = minnie
+        let! eatEventNumber = 1L |> EventNumber.create |> Result.mapError DogError
+        return!
+            [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create minnie')
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Reverse eatEventNumber)
+              ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Eat)
+              ("test", DateTime(2018, 8, 30, 3, 0, 0), DogCommand.Play) 
+              ]
+            |> List.map (spreadThree createCommand)
+            |> Result.sequence
+    }
 
-// let minnieCommands =
-//     result {
-//         let! minnie' = minnie
-//         let! domainCommands =
-//             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create minnie')
-//               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) ]
-//             |> List.map (spreadThree createDomainCommand')
-//             |> Result.sequence
-//         let! deleteEvent1 = 
-//             (1L, "mistake") 
-//             ||> Deletion.create
-//             |> Result.mapError DogError.mapOuroborosError
-//         let! deleteCommands =
-//             [ ("test", deleteEvent1) ]
-//             |> List.map (spreadTwo createDeleteCommand')
-//             |> Result.sequence
-//         let! newDomainCommands =
-//             [ ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Eat)
-//               ("test", DateTime(2018, 8, 30, 3, 0, 0), DogCommand.Play) ]
-//             |> List.map (spreadThree createDomainCommand')
-//             |> Result.sequence
-//         return domainCommands @ deleteCommands @ newDomainCommands
-//     }
-
-// let ragglesCommands =
-//     result {
-//         let! raggles' = raggles
-//         let! domainCommands =
-//             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create raggles')
-//               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) ]
-//             |> List.map (spreadThree createDomainCommand')
-//             |> Result.sequence
-//         let! deleteEvent1 = 
-//             (1L, "mistake") 
-//             ||> Deletion.create
-//             |> Result.mapError DogError.mapOuroborosError
-//         let! deleteCommands =
-//             [ ("test", deleteEvent1) ]
-//             |> List.map (spreadTwo createDeleteCommand')
-//             |> Result.sequence
-//         let! newDomainCommands =
-//             [ ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) ]
-//             |> List.map (spreadThree createDomainCommand')
-//             |> Result.sequence
-//         return domainCommands @ deleteCommands @ newDomainCommands
-//     }
+let ragglesCommands =
+    result {
+        let! raggles' = raggles
+        let! eatEventNumber = 1L |> EventNumber.create |> Result.mapError DogError
+        return!
+            [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create raggles')
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) 
+              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Reverse eatEventNumber) 
+              ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) ]
+            |> List.map (spreadThree createCommand)
+            |> Result.sequence
+    }
 
 // let expectedBenjiEventTypes = 
 //     [ "Born"

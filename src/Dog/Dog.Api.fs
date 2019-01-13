@@ -27,58 +27,74 @@ let handleGet (body:byte []) : AsyncResult<byte [], DogError> =
             |> AsyncResult.ofResult
         let! dto =
             body
-            |> GetRequestDto.deserializeFromBytes
+            |> GetDogRequestDto.deserializeFromBytes
             |> AsyncResult.ofResult
         let! getRequest =
             dto
-            |> GetRequestDto.toDomain
+            |> GetDogRequestDto.toDomain
             |> AsyncResult.ofResult
         let! dogStateDto =
             getRequest
             ||> Projection.dogState queryHandler
-        let! data =
+        let data =
             dogStateDto
             |> DogStateDto.serializeToBytes
-            |> AsyncResult.ofResult
         return data
+    }
+
+let handleReverse (body:byte []) =
+    asyncResult {
+        let! dto = 
+            body 
+            |> ReverseRequestDto.deserializeFromBytes
+            |> AsyncResult.ofResult
+        let! dogId, command =
+            dto
+            |> ReverseRequestDto.toDomain
+            |> AsyncResult.ofResult
+        let! events =
+            (dogId, command)
+            ||> executeCommand
+        return
+            events
+            |> CommandResponseDto.fromEvents
+            |> CommandResponseDto.serializeToBytes
     }
 
 let handleCreate (body:byte []) =
     asyncResult {
         let! dto = 
             body 
-            |> CreateDogCommandRequestDto.deserializeFromBytes
+            |> CreateDogRequestDto.deserializeFromBytes
             |> AsyncResult.ofResult
         let! dogId, command =
             dto
-            |> CreateDogCommandRequestDto.toDomain
+            |> CreateDogRequestDto.toDomain
             |> AsyncResult.ofResult
         let! events =
             (dogId, command)
             ||> executeCommand
-        return!
+        return
             events
-            |> Json.serializeToBytes
-            |> Result.mapError DogError
-            |> AsyncResult.ofResult
+            |> CommandResponseDto.fromEvents
+            |> CommandResponseDto.serializeToBytes
     }
 
 let handleCommand (commandDto:DogCommandDto) (body:byte []) =
     asyncResult {
         let! dto = 
             body 
-            |> DogCommandRequestDto.deserializeFromBytes
+            |> CommandRequestDto.deserializeFromBytes
             |> AsyncResult.ofResult
         let! dogId, domainCommand =
             dto
-            |> DogCommandRequestDto.toDomain commandDto
+            |> CommandRequestDto.toDomain commandDto
             |> AsyncResult.ofResult
         let! events =
             (dogId, domainCommand)
             ||> executeCommand
-        return!
+        return
             events
-            |> Json.serializeToBytes
-            |> Result.mapError DogError
-            |> AsyncResult.ofResult
+            |> CommandResponseDto.fromEvents
+            |> CommandResponseDto.serializeToBytes
     }

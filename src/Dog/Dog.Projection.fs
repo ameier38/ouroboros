@@ -37,6 +37,7 @@ let dogState
             let currentState = 
                 recordedEvents
                 |> queryHandler.reconstitute
+                |> fun state -> state.ToString()
             let chooseBornEvent = function
                 | {RecordedEvent.Data = (DogEventDto.Born dogDto)} -> Some dogDto
                 | _ -> None
@@ -46,7 +47,16 @@ let dogState
                 |> function
                    | [] -> None
                    | head::_ -> Some head
-            return
-                { state = currentState.ToString()
-                  dog = dogDtoOpt }
+            return!
+                match dogDtoOpt with
+                | Some dogDto ->
+                    new DogStateDto(
+                        state = currentState,
+                        dog = dogDto)
+                    |> Ok
+                | None ->
+                    "no dog event found"
+                    |> DogError
+                    |> Error
+                |> AsyncResult.ofResult
         }

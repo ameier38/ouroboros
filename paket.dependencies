@@ -7,6 +7,7 @@ nuget EventStore.Client 5.0.0-rc1 rc
 nuget FSharp.Control.AsyncSeq
 nuget MinVer 1.0.0-beta.2 beta
 nuget Newtonsoft.Json
+nuget OpenAPITypeProvider
 nuget Suave
 nuget Expecto
 nuget Expecto.BenchmarkDotNet

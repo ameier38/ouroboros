@@ -3,7 +3,7 @@ namespace Ouroboros
 open System.Text
 open Newtonsoft.Json
 
-module List =
+module internal List =
     let divide extract items =
         let rec loop (extracted, other) remainingItems =
             match remainingItems with
@@ -16,11 +16,11 @@ module List =
                 loop accumulator tail
         loop ([], []) items
 
-module String =
+module internal String =
     let toBytes (s:string) = s |> Encoding.UTF8.GetBytes
     let fromBytes (bytes:byte []) = bytes |> Encoding.UTF8.GetString
 
-module Json =
+module internal Json =
     let serializeToJson (o:obj) =
         try
             JsonConvert.SerializeObject o
