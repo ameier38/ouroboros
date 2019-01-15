@@ -138,6 +138,18 @@ type Reconstitute<'DomainEvent,
     RecordedEvent<'DomainEvent,'DomainEventMeta> list
      -> 'DomainState
 
+type Serialize<'T,'DomainError> =
+    'T
+     -> Result<byte array,'DomainError>
+
+type Deserialize<'T,'DomainError> =
+    byte array
+     -> Result<'T,'DomainError>
+
+type Serializer<'T,'DomainError> =
+    { serialize: Serialize<'T,'DomainError>
+      deserialize: Deserialize<'T,'DomainError> }
+
 type Repository<'DomainEvent, 
                 'DomainEventMeta, 
                 'DomainError> =

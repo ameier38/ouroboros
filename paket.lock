@@ -42,6 +42,12 @@ NUGET
       FSharp.Core (>= 3.1.2) - restriction: >= net45
       FSharp.Core (>= 4.3.2) - restriction: && (< net45) (>= netstandard2.0)
     FSharp.Core (4.5.4)
+    Hopac (0.4.1) - restriction: >= netstandard2.0
+      FSharp.Core (>= 4.5 < 5.0) - restriction: >= netstandard2.0
+    Http.fs (5.3)
+      FSharp.Core (>= 4.3.4) - restriction: >= netstandard2.0
+      Hopac (>= 0.3.23) - restriction: >= netstandard2.0
+      System.Diagnostics.FileVersionInfo (>= 4.3) - restriction: && (< net471) (>= netstandard2.0)
     Microsoft.CodeAnalysis.Analyzers (2.6.3) - restriction: || (>= net461) (>= netcoreapp2.0)
     Microsoft.CodeAnalysis.Common (2.10) - restriction: || (>= net461) (>= netcoreapp2.0)
       Microsoft.CodeAnalysis.Analyzers (>= 2.6.1) - restriction: >= netstandard1.3
@@ -429,7 +435,7 @@ NUGET
       Microsoft.NETCore.Targets (>= 1.1) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.3) (< win8) (< wpa81) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< net45) (>= netstandard1.0) (< netstandard1.3) (< win8) (< wp8) (< wpa81)) (< portable-net45+win8+wp8+wpa81)
       System.Runtime (>= 4.3) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.3) (< win8) (< wpa81) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< net45) (>= netstandard1.0) (< netstandard1.3) (< win8) (< wp8) (< wpa81)) (< portable-net45+win8+wp8+wpa81)
     System.Diagnostics.DiagnosticSource (4.5.1) - restriction: || (&& (< monoandroid) (< net45) (< netstandard1.6) (>= netstandard2.0) (< win8) (< wpa81)) (&& (< monoandroid) (< net45) (>= netstandard2.0) (< xamarinios)) (&& (>= netstandard2.0) (< portable-net45+win8+wpa81))
-    System.Diagnostics.FileVersionInfo (4.3) - restriction: || (>= net461) (>= netstandard2.0)
+    System.Diagnostics.FileVersionInfo (4.3) - restriction: || (>= net461) (&& (< net471) (>= netstandard2.0)) (>= netcoreapp2.0)
       Microsoft.NETCore.Platforms (>= 1.1) - restriction: || (&& (< monoandroid) (< monotouch) (< net46) (>= netstandard1.3) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< netstandard1.3))
       System.Globalization (>= 4.3) - restriction: && (< monoandroid) (< monotouch) (< net46) (>= netstandard1.3) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)
       System.IO (>= 4.3) - restriction: || (&& (< monoandroid) (< monotouch) (< net46) (>= netstandard1.3) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< netstandard1.3))

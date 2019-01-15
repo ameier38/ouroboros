@@ -5,6 +5,7 @@ github ameier38/fsharp-utilities src/SimpleType.fs
 github ameier38/fsharp-utilities src/Env.fs
 nuget EventStore.Client 5.0.0-rc1 rc
 nuget FSharp.Control.AsyncSeq
+nuget Http.fs
 nuget MinVer 1.0.0-beta.2 beta
 nuget Newtonsoft.Json
 nuget OpenAPITypeProvider

@@ -25,10 +25,3 @@ module EventMetaDto =
                   EffectiveOrder = effectiveOrder
                   DomainEventMeta = dto.DomainEventMeta }
         }
-    let serialize (dto:EventMetaDto<'DomainEventMeta>) = 
-        dto 
-        |> Json.serializeToBytes
-        |> Result.mapError OuroborosError
-    let deserialize<'DomainEventMeta> = 
-        Json.deserializeFromBytes<EventMetaDto<'DomainEventMeta>>
-        >> Result.mapError OuroborosError

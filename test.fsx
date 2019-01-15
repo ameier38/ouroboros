@@ -1,81 +1,172 @@
 #r "netstandard"
 #r @"packages\Expecto\lib\netstandard2.0\Expecto.dll"
+#r @"packages\Hopac\lib\netstandard2.0\Hopac.Core.dll"
+#r @"packages\Hopac\lib\netstandard2.0\Hopac.dll"
+#r @"packages\Http.fs\lib\netstandard2.0\HttpFs.dll"
 #r @"src\Dog\out\Dog.dll"
 #r @"src\Dog\out\Ouroboros.dll"
 
 open System
 open Expecto
+open Hopac
+open HttpFs.Client
 open Ouroboros
 open Dog
 open Dog.Implementation
-let benjiId = Guid.NewGuid() |> EntityId
 
-let minnieId = Guid.NewGuid() |> EntityId
+let dogApiUrl = "http://localhost:8080"
 
-let ragglesId = Guid.NewGuid() |> EntityId
-
-let benji = ("Benji", "Maltipoo") ||> Dog.create
-let minnie = ("Minnie", "Shih Tzu") ||> Dog.create
-let raggles = ("Raggles", "Mutt") ||> Dog.create
-
-let spreadTwo f tup = tup ||> f
-let spreadThree f tup = tup |||> f
-
-let createCommand commandSource effectiveDate (command:DogCommand) = 
-    result {
-        let! commandSource' = 
-            commandSource 
-            |> Source.create
-            |> Result.mapError DogError
-        let effectiveDate' = effectiveDate |> EffectiveDate
-        let dogCommandMeta = { CommandSource = commandSource' }
-        let meta = { EffectiveDate = effectiveDate'; DomainCommandMeta = dogCommandMeta }
-        return
-            { Command.Data = command
-              Meta = meta }
+let httpPost url body : Job<int * string> =
+    let req =
+        Request.createUrl Post url
+        |> Request.bodyString body
+    job {
+        use! resp = req |> getResponse
+        let! respBody = resp |> Response.readBodyAsString
+        let statusCode = resp.statusCode
+        return (statusCode, respBody)
     }
 
-let benjiCommands =
-    result {
-        let! benji' = benji
-        return!
-            [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create benji')
-              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
-              ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) 
-              ("test", DateTime(2018, 8, 30, 3, 0, 0), DogCommand.Sleep) 
-              ("test", DateTime(2018, 8, 30, 4, 0, 0), DogCommand.Wake) 
-              ("test", DateTime(2018, 8, 30, 5, 0, 0), DogCommand.Eat) ]
-            |> List.map (spreadThree createCommand)
-            |> Result.sequence
+let reverseJob (dogId:Guid) (effectiveDate:DateTime) (eventNumber:int) =
+    let body =
+        sprintf """
+        {
+          "dogId": "%s",
+          "source": "test",
+          "effectiveDate": "%s",
+          "eventNumber": %d
+        }
+        """
+        <| dogId.ToString()
+        <| effectiveDate.ToString("o")
+        <| eventNumber
+    let createUrl = sprintf "%s/reverse" dogApiUrl
+    httpPost createUrl body
+
+let createJob (dogId:Guid) (name, breed) (effectiveDate:DateTime) =
+    let body =
+        sprintf """
+        {
+          "dogId": "%s",
+          "source": "test",
+          "effectiveDate": "%s",
+          "dog": {
+            "name": "%s",
+            "breed": "%s"
+          }
+        }
+        """
+        <| dogId.ToString()
+        <| effectiveDate.ToString("o")
+        <| name
+        <| breed
+    let createUrl = sprintf "%s/create" dogApiUrl
+    httpPost createUrl body
+
+let commandJob endpoint (dogId:Guid) (effectiveDate:DateTime) =
+    let body =
+        sprintf """
+        {
+          "dogId": "%s",
+          "source": "test",
+          "effectiveDate": "%s"
+        }
+        """
+        <| dogId.ToString()
+        <| effectiveDate.ToString("o")
+    let commandUrl = sprintf "%s/%s" dogApiUrl endpoint
+    httpPost commandUrl body
+
+module Benji =
+    let benjiId = Guid.NewGuid()
+    let benjiJobs =
+        [ DateTime(2019, 1, 1) |> createJob benjiId ("Benji", "Maltipoo")
+          DateTime(2018, 1, 2) |> commandJob "eat" benjiId ]
+    let runWorkflow () =
+        benjiJobs
+        |> Job.seqCollect
+        |> run
+
+let testBenji =
+    test "test Benji" {
+        let expected =
+            [ (200, "") 
+              (200, "")
+              (200, "")
+              (200, "")
+              (200, "")
+              (200, "") ]
+        let actual = Benji.runWorkflow ()
+        Expect.sequenceEqual actual expected "responses should equal"
     }
 
-let minnieCommands =
-    result {
-        let! minnie' = minnie
-        let! eatEventNumber = 1L |> EventNumber.create |> Result.mapError DogError
-        return!
-            [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create minnie')
-              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
-              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Reverse eatEventNumber)
-              ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Eat)
-              ("test", DateTime(2018, 8, 30, 3, 0, 0), DogCommand.Play) 
-              ]
-            |> List.map (spreadThree createCommand)
-            |> Result.sequence
-    }
+runTests defaultConfig testBenji
 
-let ragglesCommands =
-    result {
-        let! raggles' = raggles
-        let! eatEventNumber = 1L |> EventNumber.create |> Result.mapError DogError
-        return!
-            [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create raggles')
-              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) 
-              ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Reverse eatEventNumber) 
-              ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) ]
-            |> List.map (spreadThree createCommand)
-            |> Result.sequence
-    }
+// let benji = ("Benji", "Maltipoo") ||> Dog.create
+// let minnie = ("Minnie", "Shih Tzu") ||> Dog.create
+// let raggles = ("Raggles", "Mutt") ||> Dog.create
+
+// let spreadTwo f tup = tup ||> f
+// let spreadThree f tup = tup |||> f
+
+// let post body =
+//     ""
+
+// let createCommand commandSource effectiveDate (command:DogCommand) = 
+//     result {
+//         let! commandSource' = 
+//             commandSource 
+//             |> Source.create
+//             |> Result.mapError DogError
+//         let effectiveDate' = effectiveDate |> EffectiveDate
+//         let dogCommandMeta = { CommandSource = commandSource' }
+//         let meta = { EffectiveDate = effectiveDate'; DomainCommandMeta = dogCommandMeta }
+//         return
+//             { Command.Data = command
+//               Meta = meta }
+//     }
+
+// let benjiCommands =
+//     result {
+//         let! benji' = benji
+//         return!
+//             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create benji')
+//               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
+//               ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) 
+//               ("test", DateTime(2018, 8, 30, 3, 0, 0), DogCommand.Sleep) 
+//               ("test", DateTime(2018, 8, 30, 4, 0, 0), DogCommand.Wake) 
+//               ("test", DateTime(2018, 8, 30, 5, 0, 0), DogCommand.Eat) ]
+//             |> List.map (spreadThree createCommand)
+//             |> Result.sequence
+//     }
+
+// let minnieCommands =
+//     result {
+//         let! minnie' = minnie
+//         let! eatEventNumber = 1L |> EventNumber.create |> Result.mapError DogError
+//         return!
+//             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create minnie')
+//               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
+//               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Reverse eatEventNumber)
+//               ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Eat)
+//               ("test", DateTime(2018, 8, 30, 3, 0, 0), DogCommand.Play) 
+//               ]
+//             |> List.map (spreadThree createCommand)
+//             |> Result.sequence
+//     }
+
+// let ragglesCommands =
+//     result {
+//         let! raggles' = raggles
+//         let! eatEventNumber = 1L |> EventNumber.create |> Result.mapError DogError
+//         return!
+//             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create raggles')
+//               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat) 
+//               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Reverse eatEventNumber) 
+//               ("test", DateTime(2018, 8, 30, 2, 0, 0), DogCommand.Play) ]
+//             |> List.map (spreadThree createCommand)
+//             |> Result.sequence
+//     }
 
 // let expectedBenjiEventTypes = 
 //     [ "Born"

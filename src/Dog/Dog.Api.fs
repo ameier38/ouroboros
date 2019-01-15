@@ -2,8 +2,10 @@ module Dog.Api
 
 open Dog
 open Dog.Implementation
-open Ouroboros
 open Suave
+open Suave.Successful
+open Suave.ServerErrors
+open Suave.Operators
 
 let executeCommand dogId dogCommand =
     asyncResult {
@@ -11,34 +13,38 @@ let executeCommand dogId dogCommand =
         return! commandHandler.handle dogId dogCommand
     }
 
-let createHandler (handle:byte [] -> AsyncResult<byte [], DogError>) : WebPart =
+let JSON data =
+    OK data 
+    >=> Writers.setMimeType "application/json; charset=utf-8"
+
+let createHandler (handle:byte [] -> AsyncResult<string, DogError>) =
     fun (ctx:HttpContext) ->
         let { request = { rawForm = body }} = ctx
-        asyncResult {
-            let! data = handle body
-            return { ctx with response = { ctx.response with status = HTTP_200.status; content = Bytes data }}
+        async {
+            match! handle body with
+            | Ok data -> 
+                return! JSON data ctx
+            | Error (DogError err) ->
+                return! INTERNAL_ERROR err ctx
         }
-        |> Async.map Result.toOption
 
-let handleGet (body:byte []) : AsyncResult<byte [], DogError> =
+let handleGet (body:byte []) : AsyncResult<string, DogError> =
     asyncResult {
         let! queryHandler = 
             queryHandlerResult 
             |> AsyncResult.ofResult
-        let! dto =
+        let! getRequest =
             body
             |> GetDogRequestDto.deserializeFromBytes
+            |> Result.bind GetDogRequestDto.toDomain
             |> AsyncResult.ofResult
-        let! getRequest =
-            dto
-            |> GetDogRequestDto.toDomain
-            |> AsyncResult.ofResult
+        printfn "received get request %A" getRequest
         let! dogStateDto =
             getRequest
             ||> Projection.dogState queryHandler
         let data =
             dogStateDto
-            |> DogStateDto.serializeToBytes
+            |> DogStateDto.serializeToJson
         return data
     }
 
@@ -58,7 +64,7 @@ let handleReverse (body:byte []) =
         return
             events
             |> CommandResponseDto.fromEvents
-            |> CommandResponseDto.serializeToBytes
+            |> CommandResponseDto.serializeToJson
     }
 
 let handleCreate (body:byte []) =
@@ -77,7 +83,7 @@ let handleCreate (body:byte []) =
         return
             events
             |> CommandResponseDto.fromEvents
-            |> CommandResponseDto.serializeToBytes
+            |> CommandResponseDto.serializeToJson
     }
 
 let handleCommand (commandDto:DogCommandDto) (body:byte []) =
@@ -96,5 +102,5 @@ let handleCommand (commandDto:DogCommandDto) (body:byte []) =
         return
             events
             |> CommandResponseDto.fromEvents
-            |> CommandResponseDto.serializeToBytes
+            |> CommandResponseDto.serializeToJson
     }

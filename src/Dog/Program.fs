@@ -4,12 +4,6 @@ open Suave.Filters
 open Dog
 open Dog.Api
 
-let bytesToString (bytes:byte[]) =
-    System.Text.Encoding.UTF8.GetString(bytes)
-
-let getInputFromRequest (req: HttpRequest) =
-    req.rawForm |> bytesToString
-
 [<EntryPoint>]
 let main argv = 
     let api = 

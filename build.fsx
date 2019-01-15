@@ -1,5 +1,6 @@
 #r "paket:
 nuget Expecto
+nuget Fake.DotNet.Fsi
 nuget Fake.DotNet.Cli
 nuget Fake.IO.FileSystem
 nuget Fake.Core.Target //"
@@ -38,6 +39,10 @@ Target.create "Restore" (fun _ ->
     Trace.trace "Restoring solution..."
     DotNet.restore id ouroborosSolution)
 
+Target.create "Build" (fun _ ->
+    Trace.trace "Building solution..."
+    DotNet.build id ouroborosSolution)
+
 Target.create "Publish" (fun _ ->
     Trace.trace "Publishing solution..."
     DotNet.publish 
@@ -46,7 +51,7 @@ Target.create "Publish" (fun _ ->
 
 Target.create "Serve" (fun _ ->
     Trace.trace "Serving test API..."
-    DotNet.exec id "run" "src/Dog/Dog.fsproj"
+    DotNet.exec id "run" "--project src/Dog/Dog.fsproj"
     |> ignore)
 
 open Fake.Core.TargetOperators
@@ -55,6 +60,7 @@ open Fake.Core.TargetOperators
  ==> "Clean"
  ==> "Install"
  ==> "Restore"
+ ==> "Build"
  ==> "Publish"
 
 Target.runOrDefault "Echo"

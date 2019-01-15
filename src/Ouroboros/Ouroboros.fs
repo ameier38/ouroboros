@@ -5,25 +5,27 @@ let [<Literal>] ReversedEventType = "Reversed"
 
 module internal Event =
     let serialize 
-        (event:Event<'DomainEvent, 'DomainEventMeta>)
-        : Result<SerializedEvent, OuroborosError> =
-        result {
-            let { Event.Type = eventType
-                  Data = domainEvent
-                  Meta = meta } = event
-            let! serializedDomainEvent =
-                domainEvent
-                |> Json.serializeToBytes
-                |> Result.mapError OuroborosError
-            let! serializedEventMeta =
-                meta
-                |> EventMetaDto.fromDomain
-                |> EventMetaDto.serialize
-            return
-                { SerializedEvent.Type = eventType
-                  Data = serializedDomainEvent
-                  Meta = serializedEventMeta }
-        }
+        (domainEventSerializer:Serializer<'DomainEvent,'DomainError>) 
+        (domainEventMetaSerializer:Serializer<'DomainEventMeta,'DomainError>) 
+        : Event<'DomainEvent,'DomainEventMeta> -> Result<SerializedEvent, OuroborosError> =
+        fun event ->
+            result {
+                let { Event.Type = eventType
+                      Data = domainEvent
+                      Meta = meta } = event
+                let! serializedDomainEvent =
+                    domainEvent
+                    |> serializer.serializeDomainEvent
+                    |> Result.mapError OuroborosError
+                let! serializedEventMeta =
+                    meta
+                    |> EventMetaDto.fromDomain
+                    |> EventMetaDto.serialize
+                return
+                    { SerializedEvent.Type = eventType
+                      Data = serializedDomainEvent
+                      Meta = serializedEventMeta }
+            }
 
 module internal SerializedRecordedEvent =
     let deserialize<'DomainEvent,'DomainEventMeta> 
@@ -64,11 +66,12 @@ module internal ExpectedVersion =
         |> Result.mapError OuroborosError
 
 module Repository =
-    let create
+    let create<'DomainEvent,'DomainEventMeta,'StoreError,'DomainError>
         (store:Store<'StoreError>) 
         (convertStoreError:'StoreError -> 'DomainError)
         (convertOuroborosError:OuroborosError -> 'DomainError)
-        (entityType:EntityType) =
+        (entityType:EntityType) 
+        : Repository<'DomainEvent,'DomainEventMeta,'DomainError> =
         let createStreamId = StreamId.create entityType
         let load entityId = 
             asyncResult {

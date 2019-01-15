@@ -3,7 +3,6 @@ module Dog.Projection
 
 open Ouroboros
 open Dog
-open Dog.Implementation
 
 let mealsFolder acc event =
     match event with
@@ -34,6 +33,7 @@ let dogState
             let! recordedEvents =
                 (dogId, observationDate)
                 ||> queryHandler.replay 
+            printfn "recordedEvents:\n%A" recordedEvents
             let currentState = 
                 recordedEvents
                 |> queryHandler.reconstitute

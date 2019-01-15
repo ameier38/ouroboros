@@ -1,6 +1,5 @@
 namespace Dog
 
-open System
 open OpenAPITypeProvider
 open Ouroboros
 
@@ -10,6 +9,8 @@ module OpenApi =
 
 type DogDto = OpenApi.DogApi.Schemas.Dog
 module DogDto =
+    let serializeToJson (dogDto:DogDto) =
+        dogDto.ToJson()
     let serializeToBytes (dogDto:DogDto) = 
         dogDto.ToJson()
         |> String.toBytes
@@ -143,6 +144,8 @@ module DogCommandDto =
 
 type DogStateDto = OpenApi.DogApi.Schemas.DogState
 module DogStateDto =
+    let serializeToJson (dto:DogStateDto) =
+        dto.ToJson()
     let serializeToBytes (dto:DogStateDto) = 
         dto.ToJson()
         |> String.toBytes
@@ -282,6 +285,8 @@ module GetDogRequestDto =
 
 type CommandResponseDto = OpenApi.DogApi.Schemas.CommandResponse
 module CommandResponseDto =
+    let serializeToJson (dto:CommandResponseDto) =
+        dto.ToJson()
     let serializeToBytes (dto:CommandResponseDto) =
         dto.ToJson()
         |> String.toBytes
