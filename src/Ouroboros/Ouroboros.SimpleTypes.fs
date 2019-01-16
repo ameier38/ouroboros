@@ -31,16 +31,6 @@ module StreamId =
         entityType' + "-" + entityId.ToString("N").ToLower()
         |> StreamId
 
-/// Starting event number when reading a stream
-type StreamStart = private StreamStart of PositiveLong
-module StreamStart =
-    let value (StreamStart start) = PositiveLong.value start
-    let create start = 
-        PositiveLong.create start 
-        |> Result.map StreamStart
-    let zero = StreamStart PositiveLong.zero
-    let max = StreamStart PositiveLong.max
-
 /// Specific expected version
 type SpecificExpectedVersion = private SpecificExpectedVersion of PositiveLong
 module SpecificExpectedVersion =

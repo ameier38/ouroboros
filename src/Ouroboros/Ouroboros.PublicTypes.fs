@@ -24,6 +24,27 @@ type Event<'DomainEvent> =
       Data: 'DomainEvent
       Meta: EventMeta }
 
+type SerializedEvent =
+    { Type: EventType
+      Data: byte array
+      Meta: byte array }
+
+type RecordedEvent<'DomainEvent> =
+    { Id: EventId
+      EventNumber: EventNumber
+      CreatedDate: CreatedDate
+      Type: EventType
+      Data: 'DomainEvent
+      Meta: EventMeta }
+
+type SerializedRecordedEvent =
+    { Id: EventId
+      EventNumber: EventNumber
+      CreatedDate: CreatedDate
+      Type: EventType
+      Data: byte array
+      Meta: byte array }
+
 type CommandMeta =
     { EffectiveDate: EffectiveDate
       Source: Source }
@@ -72,10 +93,12 @@ type Serializer<'DomainEvent,'DomainError> =
 
 /// Store types
 
+type ReadLast<'StoreError> =
+    StreamId
+     -> AsyncResult<SerializedRecordedEvent,'StoreError>
+
 type ReadStream<'StoreError> = 
-    Direction 
-     -> StreamSlice 
-     -> StreamId 
+    StreamId 
      -> AsyncResult<SerializedRecordedEvent list,'StoreError>
 
 type WriteStream<'StoreError> = 
@@ -85,5 +108,52 @@ type WriteStream<'StoreError> =
      -> AsyncResult<unit,'StoreError>
 
 type Store<'StoreError> =
-    { readStream: ReadStream<'StoreError>
+    { readLast: ReadLast<'StoreError>
+      readStream: ReadStream<'StoreError>
       writeStream: WriteStream<'StoreError> }
+
+/// Repository types
+
+type Version =
+    EntityId
+     -> AsyncResult<ExpectedVersion,OuroborosError>
+
+type Load<'DomainEvent> =
+    EntityId
+     -> AsyncResult<RecordedEvent<'DomainEvent> list,OuroborosError>
+
+type Commit<'DomainEvent> = 
+    EntityId 
+     -> ExpectedVersion 
+     -> Event<'DomainEvent> list
+     -> AsyncResult<unit,OuroborosError>
+
+type Repository<'DomainEvent> =
+    { version: Version 
+      load: Load<'DomainEvent>
+      commit: Commit<'DomainEvent> }
+
+/// Command handler types
+
+type Execute<'DomainCommand,'DomainEvent> =
+    EntityId
+     -> Command<'DomainCommand>
+     -> AsyncResult<Event<'DomainEvent> list,OuroborosError>
+
+type CommandHandler<'DomainCommand,'DomainEvent> =
+    { execute: Execute<'DomainCommand,'DomainEvent> }
+
+/// Query handler types
+
+type Replay<'DomainEvent> =
+    ObservationDate
+     -> EntityId
+     -> AsyncResult<RecordedEvent<'DomainEvent> list,OuroborosError>
+
+type Reconstitute<'DomainEvent,'DomainState> =
+    RecordedEvent<'DomainEvent> list
+     -> 'DomainState
+
+type QueryHandler<'DomainState,'DomainEvent> =
+    { replay: Replay<'DomainEvent>
+      reconstitute: Reconstitute<'DomainEvent,'DomainState> }

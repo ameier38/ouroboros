@@ -50,16 +50,16 @@ let serializedRecordedEvents =
                       Meta = meta |> String.toBytes }
             } ]
 
-let mockReadStream : ReadStream<string> =
-    fun streamSlice streamId ->
+let mockReadLast : ReadLast<string> =
+    fun streamId ->
         serializedRecordedEvents
-        |> List.take 3
-        |> Result.sequence
+        |> List.last
         |> AsyncResult.ofResult
 
-let mockReadEntireStream : ReadEntireStream<string> =
-    fun streamStart streamId ->
+let mockReadStream : ReadStream<string> =
+    fun streamId ->
         serializedRecordedEvents
+        |> List.take 3
         |> Result.sequence
         |> AsyncResult.ofResult
 
@@ -69,17 +69,33 @@ let mockWriteStream : WriteStream<string> =
         |> AsyncResult.ofSuccess
 
 let mockStore =
-    { readStream = mockReadStream
-      readEntireStream = mockReadEntireStream
+    { readLast = mockReadLast
+      readStream = mockReadStream
       writeStream = mockWriteStream }
 
-let convertOuroborosError (OuroborosError err) = err
+let convertStoreError = OuroborosError
+let convertDomainError = OuroborosError
+
+let serialize (event:DomainEvent) = Json.serializeToBytes event
+let deserialize (bytes:byte []) = Json.deserializeFromBytes<DomainEvent> bytes
+
+let mockSerializer =
+    { serializeToBytes = serialize
+      deserializeFromBytes = deserialize }
+
+let mockRepo =
+    result {
+        let! entityType = "Test" |> EntityType.create
+        return
+            Repository.create
+                mockStore
+                mockSerializer
+                convertStoreError
+                convertDomainError
+                entityType
+    }
 
 let testRepository =
     test "test load" {
-        result {
-            let! entityType = "Test" |> EntityType.create
-            let! repo = Repository.create mockStore id convertOuroborosError entityType
-            
-        } |> Expect.isOk "should be ok"
+        Expect.isTrue "should be true" true                    
     }

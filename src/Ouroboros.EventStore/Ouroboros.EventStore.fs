@@ -6,18 +6,30 @@ open SimpleType
 open EventStore.ClientAPI
 open FSharp.Control
 
+let [<Literal>] MaxStreamCount = 500
+
+type EventStoreExpectedVersion = EventStore.ClientAPI.ExpectedVersion
+
 type EventStoreError = EventStoreError of string
 
+type StoreStreamStart = int64
+
+type StoreStreamId = string
+
+type StoreExpectedVersion = int64
+
+type ReadLastEvent =
+    StoreStreamId
+     -> Async<EventReadResult>
+
 type ReadEvents = 
-    Direction
-     -> StreamStart 
-     -> SpecificStreamCount
-     -> StreamId
+    StoreStreamStart 
+     -> StoreStreamId
      -> Async<StreamEventsSlice>
 
 type WriteEvents = 
-    Ouroboros.ExpectedVersion
-     -> StreamId
+    StoreExpectedVersion
+     -> StoreStreamId
      -> EventData[]
      -> Async<WriteResult>
 
@@ -76,77 +88,75 @@ module SerializedEvent =
 
 module ExpectedVersion =
     let value = function
-        | Any -> EventStore.ClientAPI.ExpectedVersion.Any |> int64
-        | NoStream -> EventStore.ClientAPI.ExpectedVersion.NoStream |> int64
-        | EmptyStream -> EventStore.ClientAPI.ExpectedVersion.EmptyStream |> int64
-        | StreamExists -> EventStore.ClientAPI.ExpectedVersion.StreamExists |> int64
+        | Any -> EventStoreExpectedVersion.Any |> int64
+        | NoStream -> EventStoreExpectedVersion.NoStream |> int64
+        | EmptyStream -> EventStoreExpectedVersion.EmptyStream |> int64
+        | StreamExists -> EventStoreExpectedVersion.StreamExists |> int64
         | ExpectedVersion.Specific version -> SpecificExpectedVersion.value version
 
+let readLastEvent (conn:IEventStoreConnection) : ReadLastEvent =
+    fun (streamId:StoreStreamId) ->
+        let endOfStream = StreamPosition.End |> int64
+        conn.ReadEventAsync(streamId, endOfStream, false)
+        |> Async.AwaitTask
+
 let readEvents (conn:IEventStoreConnection) : ReadEvents =
-    fun direction streamStart streamCount streamId ->
-        let streamId' = StreamId.value streamId
-        let streamStart' = StreamStart.value streamStart
-        match direction with
-        | Forward ->
-            conn.ReadStreamEventsForwardAsync(streamId', streamStart', streamCount', false)
-        | Backward ->
-            conn.ReadStreamEventsBackwardAsync(streamId', streamStart', streamCount', false)
+    fun (streamStart:StoreStreamStart) (streamId:StoreStreamId) ->
+        conn.ReadStreamEventsForwardAsync(streamId, streamStart, MaxStreamCount, false)
         |> Async.AwaitTask
 
 let writeEvents (conn:IEventStoreConnection) : WriteEvents =
-    fun expectedVersion streamId eventData ->
-        let expectedVersion' = ExpectedVersion.value expectedVersion
-        let streamId' = StreamId.value streamId
-        conn.AppendToStreamAsync(streamId', expectedVersion', eventData)
+    fun (expectedVersion:StoreExpectedVersion) (streamId:StoreStreamId) (eventData:EventData []) ->
+        conn.AppendToStreamAsync(streamId, expectedVersion, eventData)
         |> Async.AwaitTask
 
-let readStream 
-    (readEvents:ReadEvents)
-    : ReadStream<EventStoreError> =
-    fun direction streamSlice streamId ->
-        asyncResult {
-            let! slice = 
-                readEvents direction streamSlice streamId 
-                |> AsyncResult.ofAsync
-            let! events =
-                slice.Events
-                |> Array.map (SerializedRecordedEvent.fromResolvedEvent >> AsyncResult.ofResult)
-                |> Array.toList
-                |> AsyncResult.sequenceM
-            return events
+let readLast
+    (readLastEvent:ReadLastEvent)
+    : ReadLast<EventStoreError> =
+    fun streamId ->
+        async {
+            let streamId' = streamId |> StreamId.value
+            try
+                let! eventReadResult = readLastEvent streamId'
+                return 
+                    match eventReadResult.Event with
+                    | resolvedEvent when resolvedEvent.HasValue -> resolvedEvent.Value |> Ok
+                    | _ -> sprintf "no event found in stream" |> EventStoreError |> Error
+                    |> Result.bind SerializedRecordedEvent.fromResolvedEvent
+            with ex ->
+                return
+                    sprintf "Error!:\n%A" ex
+                    |> EventStoreError
+                    |> Error
         }
 
 let readStream 
     (readEvents:ReadEvents)
-    : ReadEntireStream<EventStoreError> =
-    fun direction streamSlice streamId ->
-        let streamSlice = StreamSlice (streamStart, streamCount)
-        let rec read streamStart streamCount =
-            asyncResult {
-                return 
-                    asyncSeq {
-                        match! readEvents direction streamSlice streamId with
-                        | slice when slice.IsEndOfStream ->
-                            yield! slice.Events |> AsyncSeq.ofSeq
-                        | slice ->
-                            let newStreamStart = 
-                                slice.NextEventNumber 
-                                |> StreamStart.create 
-                                |> AsyncResult.ofResult
-                            let! eventsResult = 
-                                newStreamStart 
-                                |> AsyncResult.bind read
-                            match eventsResult with
-                            | Ok newEvents -> yield! newEvents
-                            | (Error e) -> failwith e
-                    }
-            }
-        let transform recordedEvents =
-            recordedEvents
-            |> AsyncSeq.map (SerializedRecordedEvent.fromResolvedEvent >> AsyncResult.ofResult)
-            |> AsyncSeq.toList
-            |> AsyncResult.sequenceM
-        read streamStart
+    : ReadStream<EventStoreError> =
+    fun streamId ->
+        let streamId' = streamId |> StreamId.value
+        let rec read streamStart : Result<AsyncSeq<ResolvedEvent>,string> =
+            try
+                asyncSeq {
+                    match! readEvents streamStart streamId' with
+                    | slice when slice.IsEndOfStream ->
+                        yield! slice.Events |> AsyncSeq.ofSeq
+                    | slice ->
+                        let newStreamStart = slice.NextEventNumber 
+                        match read newStreamStart with
+                        | Ok newEvents -> yield! newEvents
+                        | (Error e) -> failwith e
+                } |> Ok
+            with ex ->
+                sprintf "Error!\n%A" ex 
+                |> Error
+        let transform resolvedEvents =
+            resolvedEvents
+            |> AsyncSeq.map (SerializedRecordedEvent.fromResolvedEvent)
+            |> AsyncSeq.toListAsync
+            |> Async.map Result.sequence
+        read 0L
+        |> AsyncResult.ofResult
         |> AsyncResult.mapError EventStoreError
         |> AsyncResult.bind transform
 
@@ -154,10 +164,12 @@ let writeStream
     (writeEvents:WriteEvents)
     : WriteStream<EventStoreError> =
     fun expectedVersion events streamId ->
+        let expectedVersion' = expectedVersion |> ExpectedVersion.value
+        let streamId' = streamId |> StreamId.value
         events
         |> List.map SerializedEvent.toEventData
         |> List.toArray
-        |> writeEvents streamId expectedVersion
+        |> writeEvents expectedVersion' streamId'
         |> Async.Ignore
         |> AsyncResult.ofAsync
         |> AsyncResult.mapError EventStoreError
@@ -167,9 +179,9 @@ let eventStore
     : Store<EventStoreError> =
     let conn = EventStoreConnection.Create(uri)
     conn.ConnectAsync().Wait()
+    let readLast' = readLastEvent conn |> readLast
     let readStream' = readEvents conn |> readStream
-    let readEntireStream' = readEvents conn |> readEntireStream
     let writeStream' = writeEvents conn |> writeStream
-    { readStream = readStream' 
-      readEntireStream = readEntireStream'
+    { readLast = readLast'
+      readStream = readStream' 
       writeStream = writeStream' }

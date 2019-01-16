@@ -76,13 +76,27 @@ module Repository =
         (entityType:EntityType) 
         : Repository<'DomainEvent> =
         let createStreamId = StreamId.create entityType
-        let load direction entityId = 
+        let version entityId =
             asyncResult {
-                let streamStart = StreamStart.zero
+                let! lastEvent =
+                    entityId
+                    |> createStreamId
+                    |> store.readLast
+                    |> AsyncResult.mapError convertStoreError
+                return!
+                    lastEvent.EventNumber
+                    |> EventNumber.value
+                    |> SpecificExpectedVersion.create
+                    |> Result.map ExpectedVersion.Specific
+                    |> Result.mapError OuroborosError
+                    |> AsyncResult.ofResult
+            }
+        let load entityId = 
+            asyncResult {
                 let! serializedRecordedEvents = 
                     entityId
                     |> createStreamId
-                    |> store.readEntireStream direction streamStart
+                    |> store.readStream
                     |> AsyncResult.mapError convertStoreError
                 let toRecordedEvent = 
                     (convertDomainError, serializer)
@@ -109,7 +123,8 @@ module Repository =
                     |> store.writeStream expectedVersion serializedEvents
                     |> AsyncResult.mapError convertStoreError
             }
-        { load = load
+        { version = version
+          load = load
           commit = commit }
 
 module QueryHandler =
@@ -117,8 +132,8 @@ module QueryHandler =
         (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError,'T>)
         (repo:Repository<'DomainEvent>) =
         let replay
-            (entityId:EntityId)
-            (observationDate:ObservationDate) =
+            (observationDate:ObservationDate)
+            (entityId:EntityId) =
             asyncResult {
                 let! recordedEvents = repo.load entityId
                 let onOrBeforeObservationDate 
@@ -149,37 +164,31 @@ module CommandHandler =
         (convertDomainError:'DomainError -> OuroborosError)
         (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError,'T>)
         (repo:Repository<'DomainEvent>) =
-        let handle 
+        let execute 
             (entityId:EntityId) 
             (command:Command<'DomainCommand>) =
             asyncResult {
                 let queryHandler = QueryHandler.create aggregate repo
                 let { Command.Meta = { EffectiveDate = (EffectiveDate effectiveDate) } } = command
                 let observationDate = effectiveDate |> AsAt
-                let! recordedEvents = queryHandler.replay entityId observationDate
-                let! lastEvent = 
-                let! expectedVersion = 
-                    recordedEvents 
-                    |> List.length 
-                    |> ExpectedVersion.create
-                    |> AsyncResult.ofResult
+                let! expectedVersion = repo.version entityId
+                let! recordedEvents = queryHandler.replay observationDate entityId
                 let state =
                     recordedEvents
-                    |> List.filter onOrBeforeEffectiveDate
                     |> aggregate.filter
                     |> queryHandler.reconstitute
                 let! newEvents = 
-                    aggregate.execute state command
-                    |> Result.mapError convertDomainError
+                    aggregate.decide state command
+                    |> AsyncResult.mapError convertDomainError
                 do! repo.commit entityId expectedVersion newEvents
                 return newEvents
             }
-        { handle = handle }
+        { execute = execute }
 
 module Defaults =
-    let filter : Filter<'DomainEvent,'DomainEventMeta> =
-        fun (recordedEvents:RecordedEvent<'DomainEvent,'DomainEventMeta> list) ->
-            let extractReversedEvent recordedEvent =
+    let filter : Filter<'DomainEvent> =
+        fun (recordedEvents:RecordedEvent<'DomainEvent> list) ->
+            let extractReversedEvent (recordedEvent:RecordedEvent<'DomainEvent>) =
                 recordedEvent.Type
                 |> EventType.value
                 |> function
@@ -197,6 +206,6 @@ module Defaults =
                 |> List.contains domainEvent.EventNumber 
                 |> not) 
 
-    let sortBy : SortBy<'DomainEvent,'DomainEventMeta,EffectiveDate * EffectiveOrder> =
-        fun (recordedEvent:RecordedEvent<'DomainEvent,'DomainEventMeta>) ->
+    let sortBy : SortBy<'DomainEvent,EffectiveDate * EffectiveOrder> =
+        fun (recordedEvent:RecordedEvent<'DomainEvent>) ->
             recordedEvent.Meta.EffectiveDate, recordedEvent.Meta.EffectiveOrder
