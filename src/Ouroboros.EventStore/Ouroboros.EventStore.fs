@@ -8,20 +8,24 @@ open FSharp.Control
 
 type EventStoreError = EventStoreError of string
 
-type ReadEvents = StreamId -> StreamSlice -> Async<StreamEventsSlice>
+type ReadEvents = 
+    Direction
+     -> StreamStart 
+     -> SpecificStreamCount
+     -> StreamId
+     -> Async<StreamEventsSlice>
 
-type WriteEvents = StreamId -> Ouroboros.ExpectedVersion -> EventData[] -> Async<WriteResult>
+type WriteEvents = 
+    Ouroboros.ExpectedVersion
+     -> StreamId
+     -> EventData[]
+     -> Async<WriteResult>
 
 type EventStoreConfig =
     { Uri: Uri }
 module EventStoreConfig =
     let createUri protocol host port user password =
-        sprintf "%s://%s:%s@%s:%i"
-        <| protocol
-        <| user
-        <| password
-        <| host
-        <| port
+        sprintf "%s://%s:%s@%s:%i" protocol user password host port
         |> Uri
 
     let load () =
@@ -79,25 +83,31 @@ module ExpectedVersion =
         | ExpectedVersion.Specific version -> SpecificExpectedVersion.value version
 
 let readEvents (conn:IEventStoreConnection) : ReadEvents =
-    fun streamId streamSlice ->
-        let (StreamSlice (streamStart, streamCount)) = streamSlice
+    fun direction streamStart streamCount streamId ->
         let streamId' = StreamId.value streamId
         let streamStart' = StreamStart.value streamStart
-        let streamCount' = StreamCount.value streamCount
-        conn.ReadStreamEventsForwardAsync(streamId', streamStart', streamCount', false)
+        match direction with
+        | Forward ->
+            conn.ReadStreamEventsForwardAsync(streamId', streamStart', streamCount', false)
+        | Backward ->
+            conn.ReadStreamEventsBackwardAsync(streamId', streamStart', streamCount', false)
         |> Async.AwaitTask
 
 let writeEvents (conn:IEventStoreConnection) : WriteEvents =
-    fun streamId expectedVersion eventData ->
-        let streamId' = StreamId.value streamId
+    fun expectedVersion streamId eventData ->
         let expectedVersion' = ExpectedVersion.value expectedVersion
+        let streamId' = StreamId.value streamId
         conn.AppendToStreamAsync(streamId', expectedVersion', eventData)
         |> Async.AwaitTask
 
-let readStream (readEvents:ReadEvents) =
-    fun streamSlice streamId ->
+let readStream 
+    (readEvents:ReadEvents)
+    : ReadStream<EventStoreError> =
+    fun direction streamSlice streamId ->
         asyncResult {
-            let! slice = readEvents streamId streamSlice |> AsyncResult.ofAsync
+            let! slice = 
+                readEvents direction streamSlice streamId 
+                |> AsyncResult.ofAsync
             let! events =
                 slice.Events
                 |> Array.map (SerializedRecordedEvent.fromResolvedEvent >> AsyncResult.ofResult)
@@ -106,18 +116,16 @@ let readStream (readEvents:ReadEvents) =
             return events
         }
 
-let readEntireStream (readEvents:ReadEvents) =
-    fun streamStart streamId ->
-        let streamCountResult = StreamCount.create 1000
-        let rec read streamStart =
+let readStream 
+    (readEvents:ReadEvents)
+    : ReadEntireStream<EventStoreError> =
+    fun direction streamSlice streamId ->
+        let streamSlice = StreamSlice (streamStart, streamCount)
+        let rec read streamStart streamCount =
             asyncResult {
-                let! streamCount = 
-                    streamCountResult 
-                    |> AsyncResult.ofResult
-                let streamSlice = StreamSlice (streamStart, streamCount)
                 return 
                     asyncSeq {
-                        match! readEvents streamId streamSlice with
+                        match! readEvents direction streamSlice streamId with
                         | slice when slice.IsEndOfStream ->
                             yield! slice.Events |> AsyncSeq.ofSeq
                         | slice ->
@@ -142,7 +150,9 @@ let readEntireStream (readEvents:ReadEvents) =
         |> AsyncResult.mapError EventStoreError
         |> AsyncResult.bind transform
 
-let writeStream (writeEvents:WriteEvents) =
+let writeStream 
+    (writeEvents:WriteEvents)
+    : WriteStream<EventStoreError> =
     fun expectedVersion events streamId ->
         events
         |> List.map SerializedEvent.toEventData
@@ -152,7 +162,9 @@ let writeStream (writeEvents:WriteEvents) =
         |> AsyncResult.ofAsync
         |> AsyncResult.mapError EventStoreError
 
-let eventStore (uri:Uri) : Store<EventStoreError> =
+let eventStore 
+    (uri:Uri) 
+    : Store<EventStoreError> =
     let conn = EventStoreConnection.Create(uri)
     conn.ConnectAsync().Wait()
     let readStream' = readEvents conn |> readStream

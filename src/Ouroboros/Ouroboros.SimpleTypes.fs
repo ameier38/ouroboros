@@ -41,21 +41,6 @@ module StreamStart =
     let zero = StreamStart PositiveLong.zero
     let max = StreamStart PositiveLong.max
 
-/// Count of events to read
-type StreamCount = private StreamCount of PositiveInt
-module StreamCount =
-    let value (StreamCount cnt) = PositiveInt.value cnt
-    let create cnt = 
-        PositiveInt.create cnt 
-        |> Result.map StreamCount
-    let one = StreamCount PositiveInt.one
-    let max = StreamCount PositiveInt.max
-
-/// Slice of a stream
-type StreamSlice = StreamSlice of StreamStart * StreamCount
-module StreamSice =
-    let value (StreamSlice (start, count)) = start, count
-
 /// Specific expected version
 type SpecificExpectedVersion = private SpecificExpectedVersion of PositiveLong
 module SpecificExpectedVersion =
@@ -110,3 +95,11 @@ module EffectiveOrder =
     let create order = 
         PositiveInt.create order 
         |> Result.map EffectiveOrder
+
+/// Source which caused the creation of the event
+type Source = private Source of String50
+module Source =
+    let value (Source source) = String50.value source
+    let create source = 
+        String50.create source 
+        |> Result.map Source

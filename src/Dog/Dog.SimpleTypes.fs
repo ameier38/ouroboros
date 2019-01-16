@@ -6,14 +6,6 @@ open SimpleType
 /// First class error for Dog namespace
 type DogError = DogError of string
 
-/// Source which caused the creation of the event
-type Source = private Source of String50
-module Source =
-    let value (Source source) = String50.value source
-    let create source = 
-        String50.create source 
-        |> Result.map Source
-
 /// Name of the dog
 type Name = private Name of String50
 module Name =

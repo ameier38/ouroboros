@@ -2,16 +2,16 @@ namespace Ouroboros
 
 open System
 
-type EventMetaDto<'DomainEventMeta> =
+type EventMetaDto =
     { EffectiveDate: DateTime
       EffectiveOrder: int
-      DomainEventMeta: 'DomainEventMeta }
+      Source: string }
 module EventMetaDto =
-    let fromDomain (meta:EventMeta<'DomainEventMeta>) =
+    let fromDomain (meta:EventMeta) =
         { EventMetaDto.EffectiveDate = meta.EffectiveDate |> EffectiveDate.value
           EffectiveOrder = meta.EffectiveOrder |> EffectiveOrder.value
-          DomainEventMeta = meta.DomainEventMeta }
-    let toDomain (dto:EventMetaDto<'DomainEventMeta>) =
+          Source = meta.Source |> Source.value }
+    let toDomain (dto:EventMetaDto) =
         result {
             let effectiveDate = 
                 dto.EffectiveDate 
@@ -20,8 +20,21 @@ module EventMetaDto =
                 dto.EffectiveOrder 
                 |> EffectiveOrder.create
                 |> Result.mapError OuroborosError
+            let! source =
+                dto.Source
+                |> Source.create
+                |> Result.mapError OuroborosError
             return
                 { EventMeta.EffectiveDate = effectiveDate
                   EffectiveOrder = effectiveOrder
-                  DomainEventMeta = dto.DomainEventMeta }
+                  Source = source }
         }
+    let serializeToBytes (dto:EventMetaDto) =
+        dto
+        |> Json.serializeToBytes
+        |> Result.mapError OuroborosError
+
+    let deserializeFromBytes (bytes:byte []) =
+        bytes
+        |> Json.deserializeFromBytes<EventMetaDto>
+        |> Result.mapError OuroborosError
