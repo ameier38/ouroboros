@@ -1,24 +1,27 @@
 #r "netstandard"
 #r @"packages\Newtonsoft.Json\lib\netstandard2.0\Newtonsoft.Json.dll"
-#r @"src\Ouroboros\out\Ouroboros.dll"
+#r @"packages\Microsoft.OpenApi\lib\netstandard2.0\Microsoft.OpenApi.dll"
+#r @"packages\Microsoft.OpenApi.Readers\lib\netstandard2.0\Microsoft.OpenApi.Readers.dll"
+#load @"src\Ouroboros\Ouroboros.Infrastructure.fs"
 
 open System
+open System.IO
 open Ouroboros
+open Microsoft.OpenApi.Readers
 
-type Dog =
-    { Name: string
-      Breed: string }
+let readOpenApi path =
+    let reader = OpenApiStringReader()
+    reader.Read(path)
+    |> fst
+
 
 type Event =
-    | Born of DateTime * Dog
+    | Born of DateTime
     | Slept
     | Played
     | Woke
 
-let dog =
-    { Name = "Benji"
-      Breed = "Maltipoo" }
-let born = (DateTime(2019, 1, 1), dog) |> Born
+let born = (DateTime(2019, 1, 1), dogDto) |> Born
 let slept = Slept
 
 for event in [born; slept] do

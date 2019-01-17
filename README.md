@@ -91,6 +91,9 @@ Back in the original shell, deploy the test service.
 > faas deploy
 ```
 
+## Improvements
+- [ ] Migrate to [SwaggerProvider](https://github.com/fsprojects/SwaggerProvider/pull/92)
+
 ## References
 Below are a list of references used to create Ouroboros.
 - [Inventory Item example](https://github.com/eulerfx/DDDInventoryItemFSharp)

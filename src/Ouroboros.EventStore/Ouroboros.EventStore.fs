@@ -118,9 +118,11 @@ let readLast
                 let! eventReadResult = readLastEvent streamId'
                 return 
                     match eventReadResult.Event with
-                    | resolvedEvent when resolvedEvent.HasValue -> resolvedEvent.Value |> Ok
-                    | _ -> sprintf "no event found in stream" |> StoreError |> Error
-                    |> Result.bind SerializedRecordedEvent.fromResolvedEvent
+                    | resolvedEvent when resolvedEvent.HasValue -> 
+                        resolvedEvent.Value
+                        |> SerializedRecordedEvent.fromResolvedEvent
+                        |> Result.map Some
+                    | _ -> None |> Ok
             with ex ->
                 return
                     sprintf "Error!:\n%A" ex

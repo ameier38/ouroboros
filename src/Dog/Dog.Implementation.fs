@@ -38,6 +38,7 @@ module DogEvent =
     let serializeToBytes (dogEvent:DogEvent) =
         dogEvent
         |> DogEventDto.fromDomain
+        |> fun dto -> dto.ToJson() |> printfn "serializing DogEventDto:\n%A"; dto
         |> Json.serializeToBytes
         |> Result.mapError DomainError
     let deserializeFromBytes (bytes:byte []) =

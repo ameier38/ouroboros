@@ -7,37 +7,34 @@ module OpenApi =
     let [<Literal>] DogApiSchema = "openapi.yaml"
     type DogApi = OpenAPIV3Provider<DogApiSchema>
 
-type DogDto = OpenApi.DogApi.Schemas.Dog
+type DogDto =
+    { Name: string
+      Breed: string }
 module DogDto =
-    let serializeToJson (dogDto:DogDto) =
-        dogDto.ToJson()
-    let serializeToBytes (dogDto:DogDto) = 
-        dogDto.ToJson()
-        |> String.toBytes
     let deserializeFromBytes (bytes:byte []) = 
         try
             bytes
-            |> String.fromBytes
-            |> DogDto.Parse
+            |> Json.deserializeFromBytes<DogDto>
             |> Ok
         with ex ->
             sprintf "could not parse DogDto %A" ex
             |> DomainError
             |> Error
     let fromDomain (dog:Dog) =
-        new DogDto(
-            name = (dog.Name |> Name.value),
-            breed = (dog.Breed |> Breed.value))
+        { Name = dog.Name |> Name.value
+          Breed = dog.Breed |> Breed.value }
     let toDomain (dto:DogDto) =
         result {
             let! name = 
-                Name.create dto.Name 
+                dto.Name 
+                |> Name.create
                 |> Result.mapError DomainError
             let! breed = 
-                Breed.create dto.Breed 
+                dto.Breed 
+                |> Breed.create
                 |> Result.mapError DomainError
             return
-                { Name = name
+                { Dog.Name = name
                   Breed = breed }
         }
 
@@ -113,80 +110,89 @@ module DogCommandDto =
         | Wake -> DogCommand.Wake |> Ok
         | Play -> DogCommand.Play |> Ok
 
-type DogStateDto = OpenApi.DogApi.Schemas.DogState
+type DogSchema = OpenApi.DogApi.Schemas.Dog
+module DogSchema =
+    let toDto (schema:DogSchema) =
+        { Name = schema.Name
+          Breed = schema.Breed }
+
+type DogStateSchema = OpenApi.DogApi.Schemas.DogState
 module DogStateDto =
-    let serializeToJson (dto:DogStateDto) =
-        dto.ToJson()
-    let serializeToBytes (dto:DogStateDto) = 
-        dto.ToJson()
+    let serializeToJson (schema:DogStateSchema) =
+        schema.ToJson()
+    let serializeToBytes (schema:DogStateSchema) = 
+        schema
+        |> serializeToJson
         |> String.toBytes
 
-type CreateDogRequestDto = OpenApi.DogApi.Schemas.CreateDogRequest
-module CreateDogRequestDto =
+type CreateDogRequestSchema = OpenApi.DogApi.Schemas.CreateDogRequest
+module CreateDogRequestSchema =
     let deserializeFromBytes (bytes:byte []) = 
         try
             bytes
             |> String.fromBytes
-            |> CreateDogRequestDto.Parse
+            |> CreateDogRequestSchema.Parse
             |> Ok
         with ex ->
-            sprintf "could not parse CreateDogRequestDto %A" ex
+            sprintf "could not parse CreateDogRequestSchema\n%A" ex
             |> DomainError
             |> Error
-    let toDomain (dto:CreateDogRequestDto) =
+    let toDomain (schema:CreateDogRequestSchema) =
         result {
             let dogId = 
-                dto.DogId 
+                schema.DogId 
                 |> EntityId
             let effectiveDate = 
-                dto.EffectiveDate 
+                schema.EffectiveDate 
                 |> EffectiveDate
             let! source = 
-                dto.Source 
+                schema.Source 
                 |> Source.create 
                 |> Result.mapError DomainError
             let commandMeta =
                 { EffectiveDate = effectiveDate
                   Source = source }
             let! dogCommand =
-                dto.Dog
+                schema.Dog
+                |> DogSchema.toDto
                 |> DogCommandDto.Create
                 |> DogCommandDto.toDomain
             let command =
                 { Data = dogCommand
                   Meta = commandMeta }
+            printfn "Create:\n%A" command
             return dogId, command
         }
 
-type ReverseRequestDto = OpenApi.DogApi.Schemas.ReverseRequest
-module ReverseRequestDto =
+type ReverseRequestSchema = OpenApi.DogApi.Schemas.ReverseRequest
+module ReverseRequestSchema =
     let deserializeFromBytes (bytes:byte []) =
         try
             bytes
             |> String.fromBytes
-            |> ReverseRequestDto.Parse
+            |> ReverseRequestSchema.Parse
             |> Ok
         with ex ->
-            sprintf "could not parse ReverseRequestDto %A" ex
+            sprintf "could not parse ReverseRequestSchema %A" ex
             |> DomainError
             |> Error
-    let toDomain (dto:ReverseRequestDto) =
+    let toDomain (schema:ReverseRequestSchema) =
         result {
             let dogId = 
-                dto.DogId 
+                schema.DogId 
                 |> EntityId
             let effectiveDate = 
-                dto.EffectiveDate 
+                schema.EffectiveDate 
                 |> EffectiveDate
             let! source = 
-                dto.Source 
+                schema.Source 
                 |> Source.create 
                 |> Result.mapError DomainError
             let commandMeta =
                 { EffectiveDate = effectiveDate
                   Source = source }
             let! dogCommand =
-                dto.EventNumber 
+                schema.EventNumber 
                 |> int64
                 |> DogCommandDto.Reverse
                 |> DogCommandDto.toDomain
@@ -196,30 +202,30 @@ module ReverseRequestDto =
             return dogId, command
         }
 
-type CommandRequestDto = OpenApi.DogApi.Schemas.CommandRequest
-module CommandRequestDto =
+type CommandRequestSchema = OpenApi.DogApi.Schemas.CommandRequest
+module CommandRequestSchema =
     let deserializeFromBytes (bytes:byte []) = 
         try
             bytes
             |> String.fromBytes
-            |> CommandRequestDto.Parse
+            |> CommandRequestSchema.Parse
             |> Ok
         with ex ->
-            sprintf "could not parse CommandRequestDto %A" ex
+            sprintf "could not parse CommandRequestSchema %A" ex
             |> DomainError
             |> Error
     let toDomain 
         (commandDto:DogCommandDto) =
-        fun (dto:CommandRequestDto) ->
+        fun (schema:CommandRequestSchema) ->
             result {
                 let dogId = 
-                    dto.DogId 
+                    schema.DogId 
                     |> EntityId
                 let effectiveDate = 
-                    dto.EffectiveDate 
+                    schema.EffectiveDate 
                     |> EffectiveDate
                 let! source = 
-                    dto.Source 
+                    schema.Source 
                     |> Source.create 
                     |> Result.mapError DomainError
                 let commandMeta =
@@ -234,16 +240,16 @@ module CommandRequestDto =
                 return dogId, command
             }
 
-type GetDogRequestDto = OpenApi.DogApi.Schemas.GetDogRequest
-module GetDogRequestDto =
+type GetDogRequestSchema = OpenApi.DogApi.Schemas.GetDogRequest
+module GetDogRequestSchema =
     let deserializeFromBytes (bytes:byte []) = 
         try
             bytes
             |> String.fromBytes
-            |> GetDogRequestDto.Parse
+            |> GetDogRequestSchema.Parse
             |> Ok
         with ex ->
-            sprintf "could not parse GetRequestDto %A" ex
+            sprintf "could not parse GetRequestSchema %A" ex
             |> DomainError
             |> Error
     let (|Of|At|Invalid|) obsType =
@@ -251,11 +257,11 @@ module GetDogRequestDto =
         | s when (s |> String.lower) = "of" -> Of
         | s when (s |> String.lower) = "at" -> At
         | _ -> Invalid
-    let toDomain (dto:GetDogRequestDto) =
-        let dogId = dto.DogId |> EntityId
-        match dto.ObservationType with 
+    let toDomain (schema:GetDogRequestSchema) =
+        let dogId = schema.DogId |> EntityId
+        match schema.ObservationType with 
         | Of -> 
-            dto.ObservationDate 
+            schema.ObservationDate 
             |> AsOf 
             |> fun obsDate -> (obsDate, dogId)
             |> Ok
@@ -280,5 +286,5 @@ module CommandResponseDto =
         events
         |> List.map (fun ({Event.Type = eventType}) -> eventType |> EventType.value)
         |> fun eventTypes ->
-            new CommandResponseDto(
+            CommandResponseDto(
                 committedEvents = eventTypes)

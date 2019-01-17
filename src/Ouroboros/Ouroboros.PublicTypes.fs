@@ -101,7 +101,7 @@ type Serializer<'DomainEvent> =
 
 type ReadLast =
     StreamId
-     -> AsyncResult<SerializedRecordedEvent,OuroborosError>
+     -> AsyncResult<SerializedRecordedEvent option,OuroborosError>
 
 type ReadStream = 
     StreamId 

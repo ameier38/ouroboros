@@ -12,6 +12,7 @@ module internal Event =
                 let { Event.Type = eventType
                       Data = domainEvent
                       Meta = meta } = event
+                printfn "serializing domainEvent:\n%A" domainEvent
                 let! serializedDomainEvent =
                     domainEvent
                     |> serializer.serializeToBytes
@@ -72,15 +73,20 @@ module Repository =
         let createStreamId = StreamId.create entityType
         let version entityId =
             asyncResult {
-                let! lastEvent =
+                let! lastEventOpt =
                     entityId
                     |> createStreamId
                     |> store.readLast
                 return!
-                    lastEvent.EventNumber
-                    |> EventNumber.value
-                    |> SpecificExpectedVersion.create
-                    |> Result.map ExpectedVersion.Specific
+                    match lastEventOpt with
+                    | Some lastEvent ->
+                        lastEvent.EventNumber
+                        |> EventNumber.value
+                        |> SpecificExpectedVersion.create
+                        |> Result.map ExpectedVersion.Specific
+                    | None -> 
+                        ExpectedVersion.EmptyStream 
+                        |> Ok
                     |> Result.mapError OuroborosError
                     |> AsyncResult.ofResult
             }
@@ -150,11 +156,11 @@ module CommandHandler =
     let create
         (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T>)
         (repo:Repository<'DomainEvent>) =
+        let queryHandler = QueryHandler.create aggregate repo
         let execute 
             (entityId:EntityId) 
             (command:Command<'DomainCommand>) =
             asyncResult {
-                let queryHandler = QueryHandler.create aggregate repo
                 let { Command.Meta = { EffectiveDate = (EffectiveDate effectiveDate) } } = command
                 let observationDate = effectiveDate |> AsAt
                 let! expectedVersion = repo.version entityId
@@ -163,6 +169,7 @@ module CommandHandler =
                     recordedEvents
                     |> aggregate.filter
                     |> queryHandler.reconstitute
+                printfn "State:\n%A" state
                 let! newEvents = aggregate.decide state command
                 do! repo.commit entityId expectedVersion newEvents
                 return newEvents
