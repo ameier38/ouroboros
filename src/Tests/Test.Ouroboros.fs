@@ -5,9 +5,6 @@ open Ouroboros
 open Expecto
 open Expecto.Flip
 
-type DomainEventMeta =
-    { Source: string }
-
 type DomainEvent =
     | MovedLeft
     | MovedRight
@@ -16,7 +13,7 @@ type DomainEvent =
 
 let movedDown = MovedDown
 
-let serializedRecordedEvents =
+let serializedRecordedEventsResult =
     [ for i in 1 .. 5 do
         yield
             result {
@@ -35,9 +32,7 @@ let serializedRecordedEvents =
                     {
                         "EffectiveDate": "2019-01-0%dT00:00:00",
                         "EffectiveOrder": 1,
-                        "DomainEventMeta": {
-                            "Source": "test"
-                        }
+                        "Source": "test"
                     }
                     """
                     <| i
@@ -48,36 +43,63 @@ let serializedRecordedEvents =
                       Type = eventType
                       Data = data |> String.toBytes
                       Meta = meta |> String.toBytes }
-            } ]
+            }
+    ] |> Result.sequence
 
-let mockReadLast : ReadLast<string> =
+let recordedEventsResult =
+    result {
+        let! serializedRecordedEvents = serializedRecordedEventsResult
+        let! effectiveOrder = 1 |> EffectiveOrder.create
+        let! source = "test" |> Source.create
+        return
+            [ for i, event in serializedRecordedEvents |> List.zip [1 .. 5] do
+                let meta =
+                    { EffectiveDate = DateTime(2019, 1, i) |> EffectiveDate
+                      EffectiveOrder = effectiveOrder
+                      Source = source }
+                yield
+                    { RecordedEvent.Id = event.Id
+                      EventNumber = event.EventNumber
+                      CreatedDate = event.CreatedDate
+                      Type = event.Type
+                      Data = MovedLeft
+                      Meta = meta }
+            ]
+    }
+
+
+let mockReadLast : ReadLast =
     fun streamId ->
-        serializedRecordedEvents
-        |> List.last
+        serializedRecordedEventsResult
         |> AsyncResult.ofResult
+        |> AsyncResult.map List.last
+        |> AsyncResult.mapError StoreError
 
-let mockReadStream : ReadStream<string> =
+let mockReadStream : ReadStream =
     fun streamId ->
-        serializedRecordedEvents
-        |> List.take 3
-        |> Result.sequence
+        serializedRecordedEventsResult
         |> AsyncResult.ofResult
+        |> AsyncResult.map (List.take 3)
+        |> AsyncResult.mapError StoreError
 
-let mockWriteStream : WriteStream<string> =
+let mockWriteStream : WriteStream =
     fun (expectedVersion:ExpectedVersion) (events:SerializedEvent list) (streamId:StreamId) ->
         printfn "wrote"
         |> AsyncResult.ofSuccess
+        |> AsyncResult.mapError StoreError
 
 let mockStore =
     { readLast = mockReadLast
       readStream = mockReadStream
       writeStream = mockWriteStream }
 
-let convertStoreError = OuroborosError
-let convertDomainError = OuroborosError
+let serialize (event:DomainEvent) = 
+    Json.serializeToBytes event
+    |> Result.mapError DomainError
 
-let serialize (event:DomainEvent) = Json.serializeToBytes event
-let deserialize (bytes:byte []) = Json.deserializeFromBytes<DomainEvent> bytes
+let deserialize (bytes:byte []) = 
+    Json.deserializeFromBytes<DomainEvent> bytes
+    |> Result.mapError DomainError
 
 let mockSerializer =
     { serializeToBytes = serialize
@@ -90,12 +112,24 @@ let mockRepo =
             Repository.create
                 mockStore
                 mockSerializer
-                convertStoreError
-                convertDomainError
                 entityType
-    }
+    } |> Result.mapError OuroborosError
 
+[<Tests>]
 let testRepository =
     test "test load" {
-        Expect.isTrue "should be true" true                    
+        asyncResult {
+            let! repo = mockRepo |> AsyncResult.ofResult
+            let entityId = Guid.NewGuid() |> EntityId 
+            let! actualRecordedEvents = repo.load entityId
+            let! recordedEvents = 
+                recordedEventsResult 
+                |> Result.mapError OuroborosError 
+                |> Result.map (List.take 3)
+                |> AsyncResult.ofResult
+            actualRecordedEvents
+            |> Expect.sequenceEqual "sequences should equal" recordedEvents
+        } 
+        |> Async.RunSynchronously
+        |> Expect.isOk "should be ok"
     }

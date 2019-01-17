@@ -1,10 +1,6 @@
 namespace Dog
 
-open System
 open SimpleType
-
-/// First class error for Dog namespace
-type DogError = DogError of string
 
 /// Name of the dog
 type Name = private Name of String50

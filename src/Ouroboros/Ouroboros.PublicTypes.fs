@@ -2,6 +2,12 @@ namespace Ouroboros
 
 open System
 
+/// Error types
+type OuroborosError =
+    | OuroborosError of string
+    | DomainError of string
+    | StoreError of string
+
 /// Domain types
 
 /// `AsOf` means as it was or will be on and after that date.
@@ -67,50 +73,50 @@ type Evolve<'DomainState,'DomainEvent> =
      -> 'DomainEvent
      -> 'DomainState
 
-type Decide<'DomainState,'DomainCommand,'DomainEvent,'DomainError> =
+type Decide<'DomainState,'DomainCommand,'DomainEvent> =
     'DomainState
      -> Command<'DomainCommand>
-     -> AsyncResult<Event<'DomainEvent> list,'DomainError>
+     -> AsyncResult<Event<'DomainEvent> list,OuroborosError>
 
-type Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError,'T when 'T : comparison> =
+type Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T when 'T : comparison> =
     { zero: 'DomainState 
       filter: Filter<'DomainEvent>
       sortBy: SortBy<'DomainEvent,'T>
       evolve: Evolve<'DomainState,'DomainEvent>
-      decide: Decide<'DomainState,'DomainCommand,'DomainEvent,'DomainError> }
+      decide: Decide<'DomainState,'DomainCommand,'DomainEvent> }
 
-type Serialize<'DomainEvent,'DomainError> =
+type Serialize<'DomainEvent> =
     'DomainEvent
-     -> Result<byte array,'DomainError>
+     -> Result<byte array,OuroborosError>
 
-type Deserialize<'DomainEvent,'DomainError> =
+type Deserialize<'DomainEvent> =
     byte array
-     -> Result<'DomainEvent,'DomainError>
+     -> Result<'DomainEvent,OuroborosError>
 
-type Serializer<'DomainEvent,'DomainError> =
-    { serializeToBytes: Serialize<'DomainEvent,'DomainError>
-      deserializeFromBytes: Deserialize<'DomainEvent,'DomainError> }
+type Serializer<'DomainEvent> =
+    { serializeToBytes: Serialize<'DomainEvent>
+      deserializeFromBytes: Deserialize<'DomainEvent> }
 
 /// Store types
 
-type ReadLast<'StoreError> =
+type ReadLast =
     StreamId
-     -> AsyncResult<SerializedRecordedEvent,'StoreError>
+     -> AsyncResult<SerializedRecordedEvent,OuroborosError>
 
-type ReadStream<'StoreError> = 
+type ReadStream = 
     StreamId 
-     -> AsyncResult<SerializedRecordedEvent list,'StoreError>
+     -> AsyncResult<SerializedRecordedEvent list,OuroborosError>
 
-type WriteStream<'StoreError> = 
+type WriteStream = 
     ExpectedVersion 
      -> SerializedEvent list 
      -> StreamId 
-     -> AsyncResult<unit,'StoreError>
+     -> AsyncResult<unit,OuroborosError>
 
-type Store<'StoreError> =
-    { readLast: ReadLast<'StoreError>
-      readStream: ReadStream<'StoreError>
-      writeStream: WriteStream<'StoreError> }
+type Store =
+    { readLast: ReadLast
+      readStream: ReadStream
+      writeStream: WriteStream }
 
 /// Repository types
 

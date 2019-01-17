@@ -6,9 +6,6 @@ type Dog =
     { Name: Name
       Breed: Breed }
 
-type DogEventMeta =
-    { EventSource: Source }
-
 type DogEvent =
     | Reversed of EventNumber
     | Born of Dog
@@ -16,9 +13,6 @@ type DogEvent =
     | Slept
     | Woke
     | Played
-
-type DogCommandMeta =
-    { CommandSource: Source }
 
 type DogCommand =
     | Reverse of EventNumber

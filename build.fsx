@@ -19,9 +19,6 @@ let cleanDirs =
     ++ "src/*/obj"
 let ouroborosSolution = "Ouroboros.sln"
 
-Target.create "Echo" (fun _ ->
-    Trace.trace "Hi!")
-
 Target.create "Clean" (fun _ ->
     Trace.trace "Cleaning out directories..."
     Shell.cleanDirs cleanDirs)
@@ -54,13 +51,36 @@ Target.create "Serve" (fun _ ->
     DotNet.exec id "run" "--project src/Dog/Dog.fsproj"
     |> ignore)
 
+Target.create "Test" (fun _ ->
+    Trace.trace "Running unit tests..."
+    DotNet.exec id "run" "--project src/Tests/Tests.fsproj"
+    |> ignore)
+
 open Fake.Core.TargetOperators
 
-"Echo"
- ==> "Clean"
- ==> "Install"
- ==> "Restore"
- ==> "Build"
- ==> "Publish"
+"Clean"
+ ?=> "Install" 
+ ?=> "Restore"
+ ?=> "Test"
 
-Target.runOrDefault "Echo"
+"Clean" 
+ ?=> "Install"
+ ?=> "Restore"
+ ?=> "Build"
+ ?=> "Test"
+ ?=> "Publish"
+
+"Clean"
+ ?=> "Install"
+ ?=> "Restore"
+ ?=> "Serve"
+
+"Clean" ==> "Install"
+"Install" ==> "Restore"
+"Restore" ==> "Build"
+"Clean" ==> "Publish"
+"Test" ==> "Publish"
+"Restore" ==> "Test"
+"Restore" ==> "Serve"
+
+Target.runOrDefault "Test"

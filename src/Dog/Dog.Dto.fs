@@ -22,7 +22,7 @@ module DogDto =
             |> Ok
         with ex ->
             sprintf "could not parse DogDto %A" ex
-            |> DogError
+            |> DomainError
             |> Error
     let fromDomain (dog:Dog) =
         new DogDto(
@@ -32,30 +32,14 @@ module DogDto =
         result {
             let! name = 
                 Name.create dto.Name 
-                |> Result.mapError DogError
+                |> Result.mapError DomainError
             let! breed = 
                 Breed.create dto.Breed 
-                |> Result.mapError DogError
+                |> Result.mapError DomainError
             return
                 { Name = name
                   Breed = breed }
         }
-
-type DogEventMetaDto =
-    { EventSource: string }
-module DogEventMetaDto =
-    let toDomain (dto:DogEventMetaDto) =
-        result {
-            let! source = 
-                dto.EventSource 
-                |> Source.create
-                |> Result.mapError DogError
-            return
-                { DogEventMeta.EventSource = source }
-        }
-
-    let fromDomain (meta:DogEventMeta) =
-        { EventSource = meta.EventSource |> Source.value }
 
 type DogEventDto =
     | Reversed of int64
@@ -83,7 +67,7 @@ module DogEventDto =
             eventNumber
             |> EventNumber.create
             |> Result.map DogEvent.Reversed
-            |> Result.mapError DogError
+            |> Result.mapError DomainError
         | Born dogDto ->
             dogDto
             |> DogDto.toDomain
@@ -92,19 +76,6 @@ module DogEventDto =
         | Slept -> DogEvent.Slept |> Ok
         | Woke -> DogEvent.Woke |> Ok
         | Played -> DogEvent.Played |> Ok
-
-type DogCommandMetaDto =
-    { CommandSource: string }
-module DogCommandMetaDto =
-    let toDomain (dto:DogCommandMetaDto) =
-        result {
-            let! source = 
-                dto.CommandSource 
-                |> Source.create
-                |> Result.mapError DogError
-            return
-                { DogCommandMeta.CommandSource = source }
-        }
 
 type DogCommandDto =
     | Reverse of int64
@@ -132,7 +103,7 @@ module DogCommandDto =
             eventNumber
             |> EventNumber.create
             |> Result.map DogCommand.Reverse
-            |> Result.mapError DogError
+            |> Result.mapError DomainError
         | Create dogDto ->
             dogDto
             |> DogDto.toDomain
@@ -160,18 +131,23 @@ module CreateDogRequestDto =
             |> Ok
         with ex ->
             sprintf "could not parse CreateDogRequestDto %A" ex
-            |> DogError
+            |> DomainError
             |> Error
     let toDomain (dto:CreateDogRequestDto) =
         result {
-            let dogId = dto.DogId |> EntityId
-            let effectiveDate = dto.EffectiveDate |> EffectiveDate
-            let! dogCommandMeta =
-                { CommandSource = dto.Source }
-                |> DogCommandMetaDto.toDomain
+            let dogId = 
+                dto.DogId 
+                |> EntityId
+            let effectiveDate = 
+                dto.EffectiveDate 
+                |> EffectiveDate
+            let! source = 
+                dto.Source 
+                |> Source.create 
+                |> Result.mapError DomainError
             let commandMeta =
                 { EffectiveDate = effectiveDate
-                  DomainCommandMeta = dogCommandMeta }
+                  Source = source }
             let! dogCommand =
                 dto.Dog
                 |> DogCommandDto.Create
@@ -192,21 +168,26 @@ module ReverseRequestDto =
             |> Ok
         with ex ->
             sprintf "could not parse ReverseRequestDto %A" ex
-            |> DogError
+            |> DomainError
             |> Error
     let toDomain (dto:ReverseRequestDto) =
         result {
-            let dogId = dto.DogId |> EntityId
-            let effectiveDate = dto.EffectiveDate |> EffectiveDate
-            let! dogCommandMeta =
-                { CommandSource = dto.Source }
-                |> DogCommandMetaDto.toDomain
+            let dogId = 
+                dto.DogId 
+                |> EntityId
+            let effectiveDate = 
+                dto.EffectiveDate 
+                |> EffectiveDate
+            let! source = 
+                dto.Source 
+                |> Source.create 
+                |> Result.mapError DomainError
             let commandMeta =
                 { EffectiveDate = effectiveDate
-                  DomainCommandMeta = dogCommandMeta }
-            let eventNumber = dto.EventNumber |> int64
+                  Source = source }
             let! dogCommand =
-                eventNumber
+                dto.EventNumber 
+                |> int64
                 |> DogCommandDto.Reverse
                 |> DogCommandDto.toDomain
             let command =
@@ -225,20 +206,25 @@ module CommandRequestDto =
             |> Ok
         with ex ->
             sprintf "could not parse CommandRequestDto %A" ex
-            |> DogError
+            |> DomainError
             |> Error
     let toDomain 
         (commandDto:DogCommandDto) =
         fun (dto:CommandRequestDto) ->
             result {
-                let dogId = dto.DogId |> EntityId
-                let effectiveDate = dto.EffectiveDate |> EffectiveDate
-                let! dogCommandMeta =
-                    { CommandSource = dto.Source }
-                    |> DogCommandMetaDto.toDomain
+                let dogId = 
+                    dto.DogId 
+                    |> EntityId
+                let effectiveDate = 
+                    dto.EffectiveDate 
+                    |> EffectiveDate
+                let! source = 
+                    dto.Source 
+                    |> Source.create 
+                    |> Result.mapError DomainError
                 let commandMeta =
                     { CommandMeta.EffectiveDate = effectiveDate
-                      DomainCommandMeta = dogCommandMeta }
+                      Source = source }
                 let! dogCommand = 
                     commandDto 
                     |> DogCommandDto.toDomain
@@ -258,7 +244,7 @@ module GetDogRequestDto =
             |> Ok
         with ex ->
             sprintf "could not parse GetRequestDto %A" ex
-            |> DogError
+            |> DomainError
             |> Error
     let (|Of|At|Invalid|) obsType =
         match obsType with
@@ -271,16 +257,16 @@ module GetDogRequestDto =
         | Of -> 
             dto.ObservationDate 
             |> AsOf 
-            |> fun obsDate -> (dogId, obsDate)
+            |> fun obsDate -> (obsDate, dogId)
             |> Ok
         | At ->
             dto.ObservationDate 
             |> AsAt 
-            |> fun obsDate -> (dogId, obsDate)
+            |> fun obsDate -> (obsDate, dogId)
             |> Ok
         | Invalid as obsType ->
             sprintf "%s is not a valid observation type; options are 'as' or 'of'" obsType
-            |> DogError
+            |> DomainError
             |> Error
 
 type CommandResponseDto = OpenApi.DogApi.Schemas.CommandResponse
@@ -290,7 +276,7 @@ module CommandResponseDto =
     let serializeToBytes (dto:CommandResponseDto) =
         dto.ToJson()
         |> String.toBytes
-    let fromEvents (events:Event<'DomainEvent,'DomainEventMeta> list) =
+    let fromEvents (events:Event<'DomainEvent> list) =
         events
         |> List.map (fun ({Event.Type = eventType}) -> eventType |> EventType.value)
         |> fun eventTypes ->

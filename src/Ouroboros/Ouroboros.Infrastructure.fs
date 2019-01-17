@@ -33,7 +33,6 @@ module Json =
         |> Result.map String.toBytes
     let deserializeFromJson<'T> (json:string) =
         try
-            printfn "trying to deserialize %s" json
             json
             |> JsonConvert.DeserializeObject<'T>
             |> Ok

@@ -10,8 +10,6 @@ let [<Literal>] MaxStreamCount = 500
 
 type EventStoreExpectedVersion = EventStore.ClientAPI.ExpectedVersion
 
-type EventStoreError = EventStoreError of string
-
 type StoreStreamStart = int64
 
 type StoreStreamId = string
@@ -52,7 +50,7 @@ module EventStoreConfig =
             let config =
                 { Uri = uri }
             return config
-        }
+        } |> Result.mapError StoreError
 
 module SerializedRecordedEvent =
     let fromResolvedEvent (resolvedEvent:ResolvedEvent) = 
@@ -63,14 +61,14 @@ module SerializedRecordedEvent =
             let! eventNumber = 
                 resolvedEvent.Event.EventNumber 
                 |> EventNumber.create
-                |> Result.mapError EventStoreError
+                |> Result.mapError StoreError
             let createdDate = 
                 resolvedEvent.Event.Created 
                 |> CreatedDate
             let! eventType = 
                 resolvedEvent.Event.EventType 
                 |> EventType.create
-                |> Result.mapError EventStoreError
+                |> Result.mapError StoreError
             return
                 { SerializedRecordedEvent.Id = eventId
                   EventNumber = eventNumber
@@ -112,7 +110,7 @@ let writeEvents (conn:IEventStoreConnection) : WriteEvents =
 
 let readLast
     (readLastEvent:ReadLastEvent)
-    : ReadLast<EventStoreError> =
+    : ReadLast =
     fun streamId ->
         async {
             let streamId' = streamId |> StreamId.value
@@ -121,18 +119,18 @@ let readLast
                 return 
                     match eventReadResult.Event with
                     | resolvedEvent when resolvedEvent.HasValue -> resolvedEvent.Value |> Ok
-                    | _ -> sprintf "no event found in stream" |> EventStoreError |> Error
+                    | _ -> sprintf "no event found in stream" |> StoreError |> Error
                     |> Result.bind SerializedRecordedEvent.fromResolvedEvent
             with ex ->
                 return
                     sprintf "Error!:\n%A" ex
-                    |> EventStoreError
+                    |> StoreError
                     |> Error
         }
 
 let readStream 
     (readEvents:ReadEvents)
-    : ReadStream<EventStoreError> =
+    : ReadStream =
     fun streamId ->
         let streamId' = streamId |> StreamId.value
         let rec read streamStart : Result<AsyncSeq<ResolvedEvent>,string> =
@@ -157,12 +155,12 @@ let readStream
             |> Async.map Result.sequence
         read 0L
         |> AsyncResult.ofResult
-        |> AsyncResult.mapError EventStoreError
+        |> AsyncResult.mapError StoreError
         |> AsyncResult.bind transform
 
 let writeStream 
     (writeEvents:WriteEvents)
-    : WriteStream<EventStoreError> =
+    : WriteStream =
     fun expectedVersion events streamId ->
         let expectedVersion' = expectedVersion |> ExpectedVersion.value
         let streamId' = streamId |> StreamId.value
@@ -172,11 +170,11 @@ let writeStream
         |> writeEvents expectedVersion' streamId'
         |> Async.Ignore
         |> AsyncResult.ofAsync
-        |> AsyncResult.mapError EventStoreError
+        |> AsyncResult.mapError StoreError
 
 let eventStore 
     (uri:Uri) 
-    : Store<EventStoreError> =
+    : Store =
     let conn = EventStoreConnection.Create(uri)
     conn.ConnectAsync().Wait()
     let readLast' = readLastEvent conn |> readLast

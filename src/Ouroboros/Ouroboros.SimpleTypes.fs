@@ -3,11 +3,6 @@ namespace Ouroboros
 open System
 open SimpleType
 
-/// Ouroboros error
-type OuroborosError = OuroborosError of string
-module OuroborosError =
-    let value (OuroborosError error) = error
-
 /// Type of entity (read: aggregate)
 type EntityType = private EntityType of String50
 module EntityType =

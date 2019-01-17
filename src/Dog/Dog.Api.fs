@@ -2,6 +2,7 @@ module Dog.Api
 
 open Dog
 open Dog.Implementation
+open Ouroboros
 open Suave
 open Suave.Successful
 open Suave.ServerErrors
@@ -10,25 +11,26 @@ open Suave.Operators
 let executeCommand dogId dogCommand =
     asyncResult {
         let! commandHandler = commandHandlerResult |> AsyncResult.ofResult
-        return! commandHandler.handle dogId dogCommand
+        return! commandHandler.execute dogId dogCommand
     }
 
 let JSON data =
     OK data 
     >=> Writers.setMimeType "application/json; charset=utf-8"
 
-let createHandler (handle:byte [] -> AsyncResult<string, DogError>) =
+let createHandler (handle:byte [] -> AsyncResult<string,OuroborosError>) =
     fun (ctx:HttpContext) ->
         let { request = { rawForm = body }} = ctx
         async {
             match! handle body with
             | Ok data -> 
                 return! JSON data ctx
-            | Error (DogError err) ->
-                return! INTERNAL_ERROR err ctx
+            | Error err ->
+                let errStr = err.ToString()
+                return! INTERNAL_ERROR errStr ctx
         }
 
-let handleGet (body:byte []) : AsyncResult<string, DogError> =
+let handleGet (body:byte []) : AsyncResult<string,OuroborosError> =
     asyncResult {
         let! queryHandler = 
             queryHandlerResult 

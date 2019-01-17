@@ -5,40 +5,46 @@ open Ouroboros
 open Ouroboros.EventStore
 
 type Filter =
-    RecordedEvent<DogEventDto, DogEventMetaDto> list
-     -> RecordedEvent<DogEventDto, DogEventMetaDto> list
+    RecordedEvent<DogEvent> list
+     -> RecordedEvent<DogEvent> list
 
-type Apply =
+type Evolve =
     DogState
-     -> DogEventDto
+     -> DogEvent
      -> DogState
 
-type Execute =
+type Decide =
     DogState
-     -> Command<DogCommand, DogCommandMeta>
-     -> AsyncResult<Event<DogEventDto, DogEventMetaDto> list, DogError>
-
-module DogError =
-    let convertOuroborosError (OuroborosError error) = error |> DogError
-    let convertEventStoreError (EventStoreError error) = error |> DogError
+     -> Command<DogCommand>
+     -> AsyncResult<Event<DogEvent> list,OuroborosError>
 
 module Dog =
     let create name breed =
         result {
-            let! name' = name |> Name.create |> Result.mapError DogError
-            let! breed' = breed |> Breed.create |> Result.mapError DogError
+            let! name' = 
+                name 
+                |> Name.create 
+                |> Result.mapError DomainError
+            let! breed' = 
+                breed 
+                |> Breed.create 
+                |> Result.mapError DomainError
             return
                 { Name = name'
                   Breed = breed' }
         }
 
-module DogEventMeta =
-    let create source =
-        { DogEventMeta.EventSource = source }
-
-module DogCommandMeta =
-    let create source =
-        { DogCommandMeta.CommandSource = source }
+module DogEvent =
+    let serializeToBytes (dogEvent:DogEvent) =
+        dogEvent
+        |> DogEventDto.fromDomain
+        |> Json.serializeToBytes
+        |> Result.mapError DomainError
+    let deserializeFromBytes (bytes:byte []) =
+        bytes
+        |> Json.deserializeFromBytes<DogEventDto>
+        |> Result.mapError DomainError
+        |> Result.bind DogEventDto.toDomain
 
 module Apply =
     let born _ = function
@@ -65,8 +71,7 @@ module Event =
     let createEffectiveOrder order =
         order
         |> EffectiveOrder.create
-        |> Result.mapError DogError
-
+        |> Result.mapError DomainError
     let getEffectiveOrder = function
         | DogEvent.Reversed _ -> createEffectiveOrder 0
         | DogEvent.Born _ -> createEffectiveOrder 1
@@ -77,7 +82,7 @@ module Event =
     let createEventType eventType =
         eventType
         |> EventType.create
-        |> Result.mapError DogError
+        |> Result.mapError DomainError
     let getEventType = function
         | DogEvent.Reversed _ -> createEventType ReversedEventType
         | DogEvent.Born _ -> createEventType "Born"
@@ -89,21 +94,14 @@ module Event =
         fun (dogEvent:DogEvent) ->
             result {
                 let! effectiveOrder = getEffectiveOrder dogEvent 
-                let dogEventDto =
-                    dogEvent
-                    |> DogEventDto.fromDomain
-                let dogEventMetaDto = 
-                    source 
-                    |> DogEventMeta.create
-                    |> DogEventMetaDto.fromDomain
                 let eventMeta =
                     { EventMeta.EffectiveDate = effectiveDate
                       EffectiveOrder = effectiveOrder
-                      DomainEventMeta = dogEventMetaDto }
+                      Source = source }
                 let! eventType = getEventType dogEvent
                 return 
                     { Event.Type = eventType
-                      Data = dogEventDto
+                      Data = dogEvent
                       Meta = eventMeta }
             }
 
@@ -115,7 +113,7 @@ module Execute =
         |> AsyncResult.ofResult
     let fail message =
         message
-        |> DogError
+        |> DomainError
         |> AsyncResult.ofError
     let reverse source effectiveDate eventNumber (_:DogState) =
         DogEvent.Reversed eventNumber
@@ -163,13 +161,12 @@ module Execute =
         | _ ->
             "dog cannot play; dog is not bored" |> fail
 
-let execute : Execute =
+let decide : Decide =
     fun state command ->
         let { Command.Data = commandData 
               Meta = commandMeta } = command
-        let { EffectiveDate = effectiveDate
-              DomainCommandMeta = dogCommandMeta } = commandMeta
-        let { DogCommandMeta.CommandSource = source } = dogCommandMeta
+        let { CommandMeta.EffectiveDate = effectiveDate
+              Source = source } = commandMeta
         match commandData with
         | DogCommand.Reverse eventNumber ->
             Execute.reverse source effectiveDate eventNumber state
@@ -183,44 +180,37 @@ let execute : Execute =
             Execute.wake source effectiveDate state
         | DogCommand.Play ->
             Execute.play source effectiveDate state
-let apply : Apply =
-    fun state dogEventDto ->
-        dogEventDto
-        |> DogEventDto.toDomain
-        |> function
-           | Ok dogEventDto ->
-                match dogEventDto with 
-                | DogEvent.Reversed _ -> state
-                | DogEvent.Born dog -> Apply.born dog state
-                | DogEvent.Ate -> Apply.ate state
-                | DogEvent.Slept -> Apply.slept state
-                | DogEvent.Woke -> Apply.woke state
-                | DogEvent.Played -> Apply.played state
-           | Error (DogError err) -> err |> Corrupt
+let evolve : Evolve =
+    fun state -> function
+        | DogEvent.Reversed _ -> state
+        | DogEvent.Born dog -> Apply.born dog state
+        | DogEvent.Ate -> Apply.ate state
+        | DogEvent.Slept -> Apply.slept state
+        | DogEvent.Woke -> Apply.woke state
+        | DogEvent.Played -> Apply.played state
 
 let aggregate =
     { zero = NoDog
       filter = Defaults.filter
       sortBy = Defaults.sortBy
-      apply = apply
-      execute = execute }
+      evolve = evolve
+      decide = decide }
+
+let serializer =
+    { serializeToBytes = DogEvent.serializeToBytes
+      deserializeFromBytes = DogEvent.deserializeFromBytes }
 
 let repoResult =
     result {
-        let! config = 
-            EventStoreConfig.load () 
-            |> Result.mapError DogError
+        let! config = EventStoreConfig.load () 
         let store = eventStore config.Uri
         let! entityType = 
             EntityType.create "dog" 
-            |> Result.mapError DogError
-        let convertStoreError (EventStoreError err) = err |> DogError
-        let convertOuroborosError (OuroborosError err) = err |> DogError
+            |> Result.mapError OuroborosError
         let repo = 
             Repository.create 
                 store 
-                convertStoreError
-                convertOuroborosError
+                serializer
                 entityType
         return repo
     }
@@ -234,5 +224,8 @@ let queryHandlerResult =
 let commandHandlerResult =
     result {
         let! repo = repoResult
-        return CommandHandler.create DogError.convertOuroborosError aggregate repo
+        return 
+            CommandHandler.create 
+                aggregate 
+                repo
     }

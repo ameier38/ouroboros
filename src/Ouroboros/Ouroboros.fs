@@ -5,8 +5,7 @@ let [<Literal>] ReversedEventType = "Reversed"
 
 module internal Event =
     let toSerializedEvent 
-        (convertDomainError:'DomainError -> OuroborosError)
-        (serializer:Serializer<'DomainEvent,'DomainError>) 
+        (serializer:Serializer<'DomainEvent>) 
         : Event<'DomainEvent> -> Result<SerializedEvent,OuroborosError> =
         fun event ->
             result {
@@ -16,7 +15,6 @@ module internal Event =
                 let! serializedDomainEvent =
                     domainEvent
                     |> serializer.serializeToBytes
-                    |> Result.mapError convertDomainError
                 let! serializedEventMeta =
                     meta
                     |> EventMetaDto.fromDomain
@@ -29,8 +27,7 @@ module internal Event =
 
 module internal SerializedRecordedEvent =
     let toRecordedEvent
-        (convertDomainError:'DomainError -> OuroborosError)
-        (serializer:Serializer<'DomainEvent,'DomainError>)
+        (serializer:Serializer<'DomainEvent>)
         : SerializedRecordedEvent -> Result<RecordedEvent<'DomainEvent>,OuroborosError> =
         fun ({ SerializedRecordedEvent.Id = eventId
                EventNumber = eventNumber
@@ -42,7 +39,6 @@ module internal SerializedRecordedEvent =
                 let! domainEvent = 
                     serializedDomainEvent 
                     |> serializer.deserializeFromBytes
-                    |> Result.mapError convertDomainError
                 let! eventMeta = 
                     serializedEventMeta 
                     |> EventMetaDto.deserializeFromBytes
@@ -69,10 +65,8 @@ module internal ExpectedVersion =
 
 module Repository =
     let create
-        (store:Store<'StoreError>) 
-        (serializer:Serializer<'DomainEvent,'DomainError>)
-        (convertStoreError:'StoreError -> OuroborosError)
-        (convertDomainError:'DomainError -> OuroborosError)
+        (store:Store) 
+        (serializer:Serializer<'DomainEvent>)
         (entityType:EntityType) 
         : Repository<'DomainEvent> =
         let createStreamId = StreamId.create entityType
@@ -82,7 +76,6 @@ module Repository =
                     entityId
                     |> createStreamId
                     |> store.readLast
-                    |> AsyncResult.mapError convertStoreError
                 return!
                     lastEvent.EventNumber
                     |> EventNumber.value
@@ -97,10 +90,7 @@ module Repository =
                     entityId
                     |> createStreamId
                     |> store.readStream
-                    |> AsyncResult.mapError convertStoreError
-                let toRecordedEvent = 
-                    (convertDomainError, serializer)
-                    ||> SerializedRecordedEvent.toRecordedEvent 
+                let toRecordedEvent = SerializedRecordedEvent.toRecordedEvent serializer
                 return!
                     serializedRecordedEvents
                     |> List.map toRecordedEvent
@@ -109,9 +99,7 @@ module Repository =
             }
         let commit entityId expectedVersion events = 
             asyncResult {
-                let toSerializedEvent = 
-                    (convertDomainError, serializer)
-                    ||> Event.toSerializedEvent
+                let toSerializedEvent = Event.toSerializedEvent serializer
                 let! serializedEvents =
                     events
                     |> List.map toSerializedEvent
@@ -121,7 +109,6 @@ module Repository =
                     entityId
                     |> createStreamId
                     |> store.writeStream expectedVersion serializedEvents
-                    |> AsyncResult.mapError convertStoreError
             }
         { version = version
           load = load
@@ -129,7 +116,7 @@ module Repository =
 
 module QueryHandler =
     let create
-        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError,'T>)
+        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T>)
         (repo:Repository<'DomainEvent>) =
         let replay
             (observationDate:ObservationDate)
@@ -161,8 +148,7 @@ module QueryHandler =
 
 module CommandHandler =
     let create
-        (convertDomainError:'DomainError -> OuroborosError)
-        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'DomainError,'T>)
+        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T>)
         (repo:Repository<'DomainEvent>) =
         let execute 
             (entityId:EntityId) 
@@ -177,9 +163,7 @@ module CommandHandler =
                     recordedEvents
                     |> aggregate.filter
                     |> queryHandler.reconstitute
-                let! newEvents = 
-                    aggregate.decide state command
-                    |> AsyncResult.mapError convertDomainError
+                let! newEvents = aggregate.decide state command
                 do! repo.commit entityId expectedVersion newEvents
                 return newEvents
             }
