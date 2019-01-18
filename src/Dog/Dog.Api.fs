@@ -37,8 +37,8 @@ let handleGet (body:byte []) : AsyncResult<string,OuroborosError> =
             |> AsyncResult.ofResult
         let! getRequest =
             body
-            |> GetDogRequestDto.deserializeFromBytes
-            |> Result.bind GetDogRequestDto.toDomain
+            |> GetDogRequestSchema.deserializeFromBytes
+            |> Result.bind GetDogRequestSchema.toDomain
             |> AsyncResult.ofResult
         printfn "received get request %A" getRequest
         let! dogStateDto =
@@ -54,55 +54,55 @@ let handleReverse (body:byte []) =
     asyncResult {
         let! dto = 
             body 
-            |> ReverseRequestDto.deserializeFromBytes
+            |> ReverseRequestSchema.deserializeFromBytes
             |> AsyncResult.ofResult
         let! dogId, command =
             dto
-            |> ReverseRequestDto.toDomain
+            |> ReverseRequestSchema.toDomain
             |> AsyncResult.ofResult
         let! events =
             (dogId, command)
             ||> executeCommand
         return
             events
-            |> CommandResponseDto.fromEvents
-            |> CommandResponseDto.serializeToJson
+            |> CommandResponseSchema.fromEvents
+            |> CommandResponseSchema.serializeToJson
     }
 
 let handleCreate (body:byte []) =
     asyncResult {
         let! dto = 
             body 
-            |> CreateDogRequestDto.deserializeFromBytes
+            |> CreateDogRequestSchema.deserializeFromBytes
             |> AsyncResult.ofResult
         let! dogId, command =
             dto
-            |> CreateDogRequestDto.toDomain
+            |> CreateDogRequestSchema.toDomain
             |> AsyncResult.ofResult
         let! events =
             (dogId, command)
             ||> executeCommand
         return
             events
-            |> CommandResponseDto.fromEvents
-            |> CommandResponseDto.serializeToJson
+            |> CommandResponseSchema.fromEvents
+            |> CommandResponseSchema.serializeToJson
     }
 
 let handleCommand (commandDto:DogCommandDto) (body:byte []) =
     asyncResult {
         let! dto = 
             body 
-            |> CommandRequestDto.deserializeFromBytes
+            |> CommandRequestSchema.deserializeFromBytes
             |> AsyncResult.ofResult
         let! dogId, domainCommand =
             dto
-            |> CommandRequestDto.toDomain commandDto
+            |> CommandRequestSchema.toDomain commandDto
             |> AsyncResult.ofResult
         let! events =
             (dogId, domainCommand)
             ||> executeCommand
         return
             events
-            |> CommandResponseDto.fromEvents
-            |> CommandResponseDto.serializeToJson
+            |> CommandResponseSchema.fromEvents
+            |> CommandResponseSchema.serializeToJson
     }

@@ -13,10 +13,7 @@ open Fake.IO.Globbing.Operators
 open System.IO
 
 let paketExe = Path.Combine(__SOURCE_DIRECTORY__, ".paket", "paket.exe")
-let cleanDirs = 
-    !! "src/*/out"
-    ++ "src/*/bin"
-    ++ "src/*/obj"
+let cleanDirs = !! "src/*/out"
 let ouroborosSolution = "Ouroboros.sln"
 
 Target.create "Clean" (fun _ ->

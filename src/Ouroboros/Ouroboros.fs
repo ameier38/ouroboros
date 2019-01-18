@@ -3,7 +3,7 @@ module Ouroboros.Implementation
 
 let [<Literal>] ReversedEventType = "Reversed"
 
-module internal Event =
+module Event =
     let toSerializedEvent 
         (serializer:Serializer<'DomainEvent>) 
         : Event<'DomainEvent> -> Result<SerializedEvent,OuroborosError> =
@@ -26,7 +26,7 @@ module internal Event =
                       Meta = serializedEventMeta }
             }
 
-module internal SerializedRecordedEvent =
+module SerializedRecordedEvent =
     let toRecordedEvent
         (serializer:Serializer<'DomainEvent>)
         : SerializedRecordedEvent -> Result<RecordedEvent<'DomainEvent>,OuroborosError> =
@@ -53,15 +53,17 @@ module internal SerializedRecordedEvent =
                       Meta = eventMeta }
             }
 
-module internal ExpectedVersion =
-    let create nEvents =
-        match nEvents with
-        | n when n = 0 -> NoStream |> Ok
-        | n -> 
-            n - 1
-            |> int64
+module ExpectedVersion =
+    let fromLastEvent lastEventOpt =
+        match lastEventOpt with
+        | Some lastEvent ->
+            lastEvent.EventNumber
+            |> EventNumber.value
             |> SpecificExpectedVersion.create
             |> Result.map ExpectedVersion.Specific
+        | None ->
+            EmptyStream
+            |> Ok
         |> Result.mapError OuroborosError
 
 module Repository =
@@ -78,16 +80,8 @@ module Repository =
                     |> createStreamId
                     |> store.readLast
                 return!
-                    match lastEventOpt with
-                    | Some lastEvent ->
-                        lastEvent.EventNumber
-                        |> EventNumber.value
-                        |> SpecificExpectedVersion.create
-                        |> Result.map ExpectedVersion.Specific
-                    | None -> 
-                        ExpectedVersion.EmptyStream 
-                        |> Ok
-                    |> Result.mapError OuroborosError
+                    lastEventOpt
+                    |> ExpectedVersion.fromLastEvent
                     |> AsyncResult.ofResult
             }
         let load entityId = 

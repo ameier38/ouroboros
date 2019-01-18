@@ -72,14 +72,13 @@ let mockReadLast : ReadLast =
     fun streamId ->
         serializedRecordedEventsResult
         |> AsyncResult.ofResult
-        |> AsyncResult.map List.last
+        |> AsyncResult.map (List.last >> Some)
         |> AsyncResult.mapError StoreError
 
 let mockReadStream : ReadStream =
     fun streamId ->
         serializedRecordedEventsResult
         |> AsyncResult.ofResult
-        |> AsyncResult.map (List.take 3)
         |> AsyncResult.mapError StoreError
 
 let mockWriteStream : WriteStream =
@@ -117,19 +116,36 @@ let mockRepo =
 
 [<Tests>]
 let testRepository =
-    test "test load" {
-        asyncResult {
-            let! repo = mockRepo |> AsyncResult.ofResult
-            let entityId = Guid.NewGuid() |> EntityId 
-            let! actualRecordedEvents = repo.load entityId
-            let! recordedEvents = 
-                recordedEventsResult 
-                |> Result.mapError OuroborosError 
-                |> Result.map (List.take 3)
-                |> AsyncResult.ofResult
-            actualRecordedEvents
-            |> Expect.sequenceEqual "sequences should equal" recordedEvents
-        } 
-        |> Async.RunSynchronously
-        |> Expect.isOk "should be ok"
-    }
+    testList "test Repository" [
+        test "test load" {
+            asyncResult {
+                let! repo = mockRepo |> AsyncResult.ofResult
+                let entityId = Guid.NewGuid() |> EntityId 
+                let! actualRecordedEvents = repo.load entityId
+                let! recordedEvents = 
+                    recordedEventsResult 
+                    |> Result.mapError OuroborosError 
+                    |> AsyncResult.ofResult
+                actualRecordedEvents
+                |> Expect.sequenceEqual "sequences should equal" recordedEvents
+            } 
+            |> Async.RunSynchronously
+            |> Expect.isOk "should be ok"
+        }
+        test "test version" {
+            asyncResult {
+                let! repo = mockRepo |> AsyncResult.ofResult
+                let entityId = Guid.NewGuid() |> EntityId 
+                let! expectedVersion = 
+                    5L 
+                    |> SpecificExpectedVersion.create 
+                    |> Result.map ExpectedVersion.Specific
+                    |> Result.mapError OuroborosError
+                    |> AsyncResult.ofResult
+                let! actualVersion = repo.version entityId
+                Expect.equal "versions should equal last event number" actualVersion expectedVersion
+            } 
+            |> Async.RunSynchronously
+            |> Expect.isOk "should be ok"
+        }
+    ]

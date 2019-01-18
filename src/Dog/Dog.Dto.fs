@@ -266,7 +266,7 @@ module GetDogRequestSchema =
             |> fun obsDate -> (obsDate, dogId)
             |> Ok
         | At ->
-            dto.ObservationDate 
+            schema.ObservationDate 
             |> AsAt 
             |> fun obsDate -> (obsDate, dogId)
             |> Ok
@@ -275,16 +275,17 @@ module GetDogRequestSchema =
             |> DomainError
             |> Error
 
-type CommandResponseDto = OpenApi.DogApi.Schemas.CommandResponse
-module CommandResponseDto =
-    let serializeToJson (dto:CommandResponseDto) =
-        dto.ToJson()
-    let serializeToBytes (dto:CommandResponseDto) =
-        dto.ToJson()
+type CommandResponseSchema = OpenApi.DogApi.Schemas.CommandResponse
+module CommandResponseSchema =
+    let serializeToJson (schema:CommandResponseSchema) =
+        schema.ToJson()
+    let serializeToBytes (schema:CommandResponseSchema) =
+        schema
+        |> serializeToJson
         |> String.toBytes
     let fromEvents (events:Event<'DomainEvent> list) =
         events
         |> List.map (fun ({Event.Type = eventType}) -> eventType |> EventType.value)
         |> fun eventTypes ->
-            CommandResponseDto(
+            CommandResponseSchema(
                 committedEvents = eventTypes)

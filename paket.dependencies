@@ -8,6 +8,7 @@ nuget FSharp.Control.AsyncSeq
 nuget Http.fs
 nuget MinVer 1.0.0-beta.2 beta
 nuget Newtonsoft.Json
+nuget OpenAPITypeProvider
 nuget Suave
 nuget Expecto
 nuget Expecto.BenchmarkDotNet
