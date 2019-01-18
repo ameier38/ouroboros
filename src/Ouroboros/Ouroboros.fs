@@ -118,8 +118,8 @@ module QueryHandler =
         (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T>)
         (repo:Repository<'DomainEvent>) =
         let replay
-            (observationDate:ObservationDate)
-            (entityId:EntityId) =
+            (entityId:EntityId) 
+            (observationDate:ObservationDate) =
             asyncResult {
                 let! recordedEvents = repo.load entityId
                 let onOrBeforeObservationDate 
@@ -133,8 +133,22 @@ module QueryHandler =
                         effectiveDate <= asAtDate
                 return
                     recordedEvents
+                    |> fun events ->
+                        events
+                        |> List.map (fun event -> 
+                            event.EventNumber |> EventNumber.value,
+                            event.Type |> EventType.value)
+                        |> printfn "recordedEvents:\n%A"
+                        events
                     |> List.filter onOrBeforeObservationDate
                     |> aggregate.filter
+                    |> fun events ->
+                        events
+                        |> List.map (fun event -> 
+                            event.EventNumber |> EventNumber.value,
+                            event.Type |> EventType.value)
+                        |> printfn "filtered recordedEvents:\n%A"
+                        events
             }
         let reconstitute
             (recordedEvents:RecordedEvent<'DomainEvent> list) =
@@ -154,16 +168,22 @@ module CommandHandler =
             (entityId:EntityId) 
             (command:Command<'DomainCommand>) =
             asyncResult {
+                printfn "-----------------"
+                printfn "command: %A" command.Data
                 let { Command.Meta = { EffectiveDate = (EffectiveDate effectiveDate) } } = command
                 let observationDate = effectiveDate |> AsAt
                 let! expectedVersion = repo.version entityId
-                let! recordedEvents = queryHandler.replay observationDate entityId
+                let! recordedEvents = queryHandler.replay entityId observationDate
                 let state =
                     recordedEvents
-                    |> aggregate.filter
                     |> queryHandler.reconstitute
+                printfn "state: %A" state
                 let! newEvents = aggregate.decide state command
+                newEvents
+                |> List.map (fun event -> event.Type |> EventType.value)
+                |> printfn "newEvents:\n%A"
                 do! repo.commit entityId expectedVersion newEvents
+                printfn "-----------------"
                 return newEvents
             }
         { execute = execute }

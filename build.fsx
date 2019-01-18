@@ -41,6 +41,10 @@ Target.create "Restore" (fun _ ->
     Trace.trace "Restoring solution..."
     DotNet.restore id ouroborosSolution)
 
+Target.create "Build" (fun _ ->
+    Trace.trace "Building solution..."
+    DotNet.build id ouroborosSolution)
+
 Target.create "Publish" (fun _ ->
     Trace.trace "Publishing solution..."
     DotNet.publish 

@@ -152,8 +152,8 @@ type CommandHandler<'DomainCommand,'DomainEvent> =
 /// Query handler types
 
 type Replay<'DomainEvent> =
-    ObservationDate
-     -> EntityId
+    EntityId
+     -> ObservationDate
      -> AsyncResult<RecordedEvent<'DomainEvent> list,OuroborosError>
 
 type Reconstitute<'DomainEvent,'DomainState> =

@@ -267,12 +267,12 @@ module GetDogRequestSchema =
         | Of -> 
             schema.ObservationDate 
             |> AsOf 
-            |> fun obsDate -> (obsDate, dogId)
+            |> fun obsDate -> (dogId, obsDate)
             |> Ok
         | At ->
             schema.ObservationDate 
             |> AsAt 
-            |> fun obsDate -> (obsDate, dogId)
+            |> fun obsDate -> (dogId, obsDate)
             |> Ok
         | Invalid as obsType ->
             sprintf "%s is not a valid observation type; options are 'as' or 'of'" obsType

@@ -10,7 +10,7 @@ let mealsFolder acc event =
 
 let mealCount
     (queryHandler:QueryHandler<DogState,DogEvent>) =
-    fun dogId observationDate ->
+    fun (dogId:EntityId) (observationDate:ObservationDate) ->
         asyncResult {
             let initialMealCount = 0
             let! recordedEvents = 
@@ -24,7 +24,7 @@ let mealCount
 
 let dogState
     (queryHandler:QueryHandler<DogState,DogEvent>) =
-    fun dogId observationDate ->
+    fun (dogId:EntityId) (observationDate:ObservationDate) ->
         asyncResult {
             let! recordedEvents =
                 (dogId, observationDate)

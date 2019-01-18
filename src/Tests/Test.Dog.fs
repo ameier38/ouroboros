@@ -9,6 +9,7 @@ open Ouroboros
 
 let benjiId = Guid.NewGuid() |> EntityId
 let benji = ("Benji", "Maltipoo") ||> Dog.create
+let minnieId = Guid.NewGuid() |> EntityId
 let minnie = ("Minnie", "Shih Tzu") ||> Dog.create
 let raggles = ("Raggles", "Mutt") ||> Dog.create
 
@@ -46,7 +47,7 @@ let benjiCommands =
 let minnieCommands =
     result {
         let! minnie' = minnie
-        let! eatEventNumber = 1L |> EventNumber.create |> Result.mapError DogError
+        let! eatEventNumber = 1L |> EventNumber.create |> Result.mapError DomainError
         return!
             [ ("test", DateTime(2018, 8, 30, 0, 0, 0), DogCommand.Create minnie')
               ("test", DateTime(2018, 8, 30, 1, 0, 0), DogCommand.Eat)
@@ -214,4 +215,5 @@ let testMinnie =
 let testOuroboros =
     testList "test Ouroboros" [
         testBenji
+        testMinnie
     ]
