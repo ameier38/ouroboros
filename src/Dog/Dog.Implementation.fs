@@ -19,7 +19,7 @@ type Decide =
      -> AsyncResult<Event<DogEvent> list,OuroborosError>
 
 module Dog =
-    let create name breed =
+    let create name breed : Result<Dog,OuroborosError> =
         result {
             let! name' = 
                 name 
@@ -38,7 +38,6 @@ module DogEvent =
     let serializeToBytes (dogEvent:DogEvent) =
         dogEvent
         |> DogEventDto.fromDomain
-        |> fun dto -> dto.ToJson() |> printfn "serializing DogEventDto:\n%A"; dto
         |> Json.serializeToBytes
         |> Result.mapError DomainError
     let deserializeFromBytes (bytes:byte []) =

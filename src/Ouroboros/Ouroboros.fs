@@ -12,7 +12,6 @@ module Event =
                 let { Event.Type = eventType
                       Data = domainEvent
                       Meta = meta } = event
-                printfn "serializing domainEvent:\n%A" domainEvent
                 let! serializedDomainEvent =
                     domainEvent
                     |> serializer.serializeToBytes
@@ -163,7 +162,6 @@ module CommandHandler =
                     recordedEvents
                     |> aggregate.filter
                     |> queryHandler.reconstitute
-                printfn "State:\n%A" state
                 let! newEvents = aggregate.decide state command
                 do! repo.commit entityId expectedVersion newEvents
                 return newEvents

@@ -14,3 +14,13 @@ services:
       - EVENTSTORE_PORT=1113
       - EVENTSTORE_USER=admin
       - EVENTSTORE_PASSWORD=changeit
+  helm-test:
+    build:
+      context: .
+    image: ameier38/ouroboros-test:latest
+    environment:
+      - EVENTSTORE_PROTOCOL=discover
+      - EVENTSTORE_HOST=localhost
+      - EVENTSTORE_PORT=2113
+      - EVENTSTORE_USER=admin
+      - EVENTSTORE_PASSWORD=changeit

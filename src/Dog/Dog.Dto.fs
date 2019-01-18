@@ -4,7 +4,7 @@ open OpenAPITypeProvider
 open Ouroboros
 
 module OpenApi =
-    let [<Literal>] DogApiSchema = "openapi.yaml"
+    let [<Literal>] DogApiSchema = __SOURCE_DIRECTORY__  + "/openapi.yaml"
     type DogApi = OpenAPIV3Provider<DogApiSchema>
 
 type DogDto =
@@ -115,9 +115,13 @@ module DogSchema =
     let toDto (schema:DogSchema) =
         { Name = schema.Name
           Breed = schema.Breed }
+    let fromDto (dto:DogDto) =
+        DogSchema(
+            name = dto.Name,
+            breed = dto.Breed)
 
 type DogStateSchema = OpenApi.DogApi.Schemas.DogState
-module DogStateDto =
+module DogStateSchema =
     let serializeToJson (schema:DogStateSchema) =
         schema.ToJson()
     let serializeToBytes (schema:DogStateSchema) = 

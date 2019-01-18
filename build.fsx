@@ -13,12 +13,20 @@ open Fake.IO.Globbing.Operators
 open System.IO
 
 let paketExe = Path.Combine(__SOURCE_DIRECTORY__, ".paket", "paket.exe")
-let cleanDirs = !! "src/*/out"
+let cleanPublish = 
+    !! "src/*/out"
+let cleanBuild = 
+    !! "src/*/bin"
+    ++ "src/*/obj"
 let ouroborosSolution = "Ouroboros.sln"
 
-Target.create "Clean" (fun _ ->
+Target.create "CleanPublish" (fun _ ->
     Trace.trace "Cleaning out directories..."
-    Shell.cleanDirs cleanDirs)
+    Shell.cleanDirs cleanPublish)
+
+Target.create "CleanBuild" (fun _ ->
+    Trace.trace "Cleaning build directories..."
+    Shell.cleanDirs cleanBuild)
 
 Target.create "Install" (fun _ ->
     Trace.trace "Installing dependencies..."
@@ -32,10 +40,6 @@ Target.create "Install" (fun _ ->
 Target.create "Restore" (fun _ ->
     Trace.trace "Restoring solution..."
     DotNet.restore id ouroborosSolution)
-
-Target.create "Build" (fun _ ->
-    Trace.trace "Building solution..."
-    DotNet.build id ouroborosSolution)
 
 Target.create "Publish" (fun _ ->
     Trace.trace "Publishing solution..."
@@ -55,29 +59,10 @@ Target.create "Test" (fun _ ->
 
 open Fake.Core.TargetOperators
 
-"Clean"
- ?=> "Install" 
- ?=> "Restore"
- ?=> "Test"
-
-"Clean" 
+"CleanPublish" 
  ?=> "Install"
  ?=> "Restore"
- ?=> "Build"
  ?=> "Test"
  ?=> "Publish"
-
-"Clean"
- ?=> "Install"
- ?=> "Restore"
- ?=> "Serve"
-
-"Clean" ==> "Install"
-"Install" ==> "Restore"
-"Restore" ==> "Build"
-"Clean" ==> "Publish"
-"Test" ==> "Publish"
-"Restore" ==> "Test"
-"Restore" ==> "Serve"
 
 Target.runOrDefault "Test"

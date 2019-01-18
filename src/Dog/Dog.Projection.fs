@@ -2,7 +2,6 @@
 module Dog.Projection
 
 open Ouroboros
-open Dog
 
 let mealsFolder acc event =
     match event with
@@ -46,10 +45,13 @@ let dogState
             return!
                 match dogOpt with
                 | Some dog ->
-                    let dogDto = dog |> DogDto.fromDomain
-                    new DogStateDto(
+                    let dogSchema = 
+                        dog 
+                        |> DogDto.fromDomain
+                        |> DogSchema.fromDto
+                    DogStateSchema(
                         state = currentState,
-                        dog = dogDto)
+                        dog = dogSchema)
                     |> Ok
                 | None ->
                     "no dog event found"

@@ -20,7 +20,7 @@ NUGET
       System.Xml.XmlSerializer (>= 4.3) - restriction: || (>= net46) (>= netstandard2.0)
       System.Xml.XPath.XmlDocument (>= 4.3) - restriction: || (>= net46) (>= netstandard2.0)
     CommandLineParser (2.4.3) - restriction: || (>= net461) (>= netcoreapp2.0)
-    EventStore.Client (5.0.0-rc1)
+    EventStore.Client (5.0.0-rc2)
       Newtonsoft.Json (>= 11.0.2) - restriction: || (>= net46) (>= netstandard2.0)
       protobuf-net (>= 2.4) - restriction: || (>= net46) (>= netstandard2.0)
       System.Net.Http (>= 4.3.4) - restriction: && (< net46) (>= netstandard2.0)

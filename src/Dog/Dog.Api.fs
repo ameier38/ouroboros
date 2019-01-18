@@ -1,7 +1,6 @@
 module Dog.Api
 
-open Dog
-open Dog.Implementation
+open Implementation
 open Ouroboros
 open Suave
 open Suave.Successful
@@ -41,12 +40,12 @@ let handleGet (body:byte []) : AsyncResult<string,OuroborosError> =
             |> Result.bind GetDogRequestSchema.toDomain
             |> AsyncResult.ofResult
         printfn "received get request %A" getRequest
-        let! dogStateDto =
+        let! dogStateSchema =
             getRequest
             ||> Projection.dogState queryHandler
         let data =
-            dogStateDto
-            |> DogStateDto.serializeToJson
+            dogStateSchema
+            |> DogStateSchema.serializeToJson
         return data
     }
 
