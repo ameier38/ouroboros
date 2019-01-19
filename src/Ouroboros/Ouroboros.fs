@@ -1,8 +1,6 @@
 [<AutoOpen>]
 module Ouroboros.Implementation
 
-let [<Literal>] ReversedEventType = "Reversed"
-
 module Event =
     let toSerializedEvent 
         (serializer:Serializer<'DomainEvent>) 
@@ -187,28 +185,3 @@ module CommandHandler =
                 return newEvents
             }
         { execute = execute }
-
-module Defaults =
-    let filter : Filter<'DomainEvent> =
-        fun (recordedEvents:RecordedEvent<'DomainEvent> list) ->
-            let extractReversedEvent (recordedEvent:RecordedEvent<'DomainEvent>) =
-                recordedEvent.Type
-                |> EventType.value
-                |> function
-                   | ReversedEventType -> Some recordedEvent
-                   | _ -> None
-            let (reversedEvents, domainEvents) =
-                recordedEvents
-                |> List.divide extractReversedEvent
-            let reversedEventNumbers =
-                reversedEvents
-                |> List.map (fun ({RecordedEvent.EventNumber = eventNumber}) -> eventNumber)
-            domainEvents
-            |> List.filter (fun domainEvent ->
-                reversedEventNumbers 
-                |> List.contains domainEvent.EventNumber 
-                |> not) 
-
-    let sortBy : SortBy<'DomainEvent,EffectiveDate * EffectiveOrder> =
-        fun (recordedEvent:RecordedEvent<'DomainEvent>) ->
-            recordedEvent.Meta.EffectiveDate, recordedEvent.Meta.EffectiveOrder

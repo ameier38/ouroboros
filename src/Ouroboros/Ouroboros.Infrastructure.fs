@@ -11,7 +11,7 @@ module List =
             | head::tail ->
                 let accumulator =
                     match extract head with
-                    | Some _ -> head::extracted, other
+                    | Some value -> value::extracted, other
                     | None -> extracted, head::other
                 loop accumulator tail
         loop ([], []) items

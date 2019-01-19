@@ -84,7 +84,7 @@ module Event =
         |> EventType.create
         |> Result.mapError DomainError
     let getEventType = function
-        | DogEvent.Reversed _ -> createEventType ReversedEventType
+        | DogEvent.Reversed _ -> createEventType "Reversed"
         | DogEvent.Born _ -> createEventType "Born"
         | DogEvent.Ate -> createEventType "Ate"
         | DogEvent.Slept -> createEventType "Slept"
@@ -189,10 +189,29 @@ let evolve : Evolve =
         | DogEvent.Woke -> Apply.woke state
         | DogEvent.Played -> Apply.played state
 
+let filter : Filter<DogEvent> =
+    fun (recordedEvents:RecordedEvent<DogEvent> list) ->
+        let extractReversedEventNumbers (recordedEvent:RecordedEvent<DogEvent>) =
+            match recordedEvent.Data with
+            | DogEvent.Reversed eventNumber -> Some eventNumber
+            | _ -> None
+        let (reversedEventNumbers, domainEvents) =
+            recordedEvents
+            |> List.divide extractReversedEventNumbers
+        domainEvents
+        |> List.filter (fun domainEvent ->
+            reversedEventNumbers 
+            |> List.contains domainEvent.EventNumber 
+            |> not) 
+
+let sortBy : SortBy<DogEvent,EffectiveDate * EffectiveOrder> =
+    fun (recordedEvent:RecordedEvent<DogEvent>) ->
+        recordedEvent.Meta.EffectiveDate, recordedEvent.Meta.EffectiveOrder
+
 let aggregate =
     { zero = NoDog
-      filter = Defaults.filter
-      sortBy = Defaults.sortBy
+      filter = filter
+      sortBy = sortBy
       evolve = evolve
       decide = decide }
 
