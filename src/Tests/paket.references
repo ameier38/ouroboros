@@ -1,7 +1,2 @@
-File: Result.fs
-File: SimpleType.fs
-File: DotEnv.fs
-Vertigo.Json
+FSharp.Core
 Expecto
-Expecto.BenchmarkDotNet
-Expecto.FsCheck

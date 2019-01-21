@@ -9,4 +9,6 @@
 ### Paket ###
 packages
 paket-files
-temp
+
+### FAKE ###
+.fake

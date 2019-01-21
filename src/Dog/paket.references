@@ -1,6 +1,7 @@
 FSharp.Core
+Suave
 Newtonsoft.Json
-MinVer
+OpenAPITypeProvider
 File:Result.fs
 File:SimpleType.fs
 File:Env.fs
