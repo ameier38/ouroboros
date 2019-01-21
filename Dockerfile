@@ -44,11 +44,4 @@ RUN fake build -t Restore
 COPY . .
 RUN fake build -t Publish
 
-# use runtime image for final image
-FROM microsoft/dotnet:2.2-runtime
-
-WORKDIR /ouroboros
-COPY --from=builder /ouroboros/src/Tests/out Tests
-COPY --from=builder /ouroboros/src/Dog/out Dog
-
-CMD ["dotnet", "Tests/Tests.dll"]
+CMD ["dotnet", "src/Tests/out/Tests.dll"]
