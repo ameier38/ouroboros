@@ -20,6 +20,8 @@ steps:
       services:
         eventstore:
           image: eventstore/eventstore
+          healthcheck:
+            test: ["CMD", "curl", "-f", "http://eventstore:2113/users/admin"]
     composition_candidates:
         test:
           image: ${{build_ouroboros}}
@@ -38,12 +40,16 @@ steps:
       services:
         eventstore:
           image: eventstore/eventstore
+          healthcheck:
+            test: ["CMD", "curl", "-f", "http://eventstore:2113/users/admin"]
         api:
           image: ${{build_ouroboros}}
           expose: "8080"
           command: dotnet "Dog/Dog.dll"
           depends_on:
             - eventstore
+          healthcheck:
+            test: ["CMD", "curl", "-f", "http://api:8080/_healthz"]
     composition_candidates:
         test:
           image: ameier38/dotnet-mono:2.2

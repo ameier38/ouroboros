@@ -1,5 +1,6 @@
 open Suave
 open Suave.Operators
+open Suave.Successful
 open Suave.Filters
 open Dog
 open Dog.Api
@@ -15,7 +16,9 @@ let main argv =
                   path "/eat" >=> createHandler (handleCommand DogCommandDto.Eat)
                   path "/sleep" >=> createHandler (handleCommand DogCommandDto.Sleep)
                   path "/wake" >=> createHandler (handleCommand DogCommandDto.Wake)
-                  path "/play" >=> createHandler (handleCommand DogCommandDto.Play) ] ]
+                  path "/play" >=> createHandler (handleCommand DogCommandDto.Play) ]
+              GET >=> choose
+                [ path "/_healthz" >=> OK "Success!"] ]
     let config =
         { defaultConfig with
             bindings = [ HttpBinding.createSimple HTTP "0.0.0.0" 8080 ] }
