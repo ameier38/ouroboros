@@ -287,7 +287,7 @@ module CommandResponseSchema =
         schema
         |> serializeToJson
         |> String.toBytes
-    let fromEvents (events:Event<'DomainEvent> list) =
+    let fromEvents (events:Event<DogEvent> list) =
         events
         |> List.map (fun ({Event.Type = eventType}) -> eventType |> EventType.value)
         |> fun eventTypes ->

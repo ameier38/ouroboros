@@ -1,5 +1,6 @@
 FSharp.Core
 Newtonsoft.Json
+MinVer
 File:Result.fs
 File:SimpleType.fs
 File:Env.fs

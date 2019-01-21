@@ -53,19 +53,19 @@ module Apply =
     let ate = function
         | NoDog -> "dog cannot eat; dog does not exist" |> Corrupt
         | Hungry -> Bored
-        | state -> sprintf "dog cannot eat in state:\n%A" state |> Corrupt
+        | state -> sprintf "dog cannot eat in state: %A" state |> Corrupt
     let slept = function
         | NoDog -> "dog cannot sleep; dog does not exist" |> Corrupt
         | Tired -> Asleep
-        | state -> sprintf "dog cannot sleep in state: \n%A" state |> Corrupt
+        | state -> sprintf "dog cannot sleep in state: %A" state |> Corrupt
     let woke = function
         | NoDog -> "dog cannot wake; dog does not exist" |> Corrupt
         | Asleep -> Hungry
-        | state -> sprintf "dog cannot wake in state: \n%A" state |> Corrupt
+        | state -> sprintf "dog cannot wake in state: %A" state |> Corrupt
     let played = function
         | NoDog -> "dog cannot play; dog does not exist" |> Corrupt
         | Bored -> Tired
-        | state -> sprintf "dog cannot play in state: \n%A" state |> Corrupt
+        | state -> sprintf "dog cannot play in state: %A" state |> Corrupt
 
 module Event =
     let createEffectiveOrder order =
@@ -122,8 +122,8 @@ module Execute =
         | NoDog ->
             DogEvent.Born dog 
             |> success source effectiveDate
-        | _ ->
-            "cannot create dog; dog already exists" 
+        | state ->
+            sprintf "cannot create dog; dog already exists in state %A" state 
             |> fail
     let eat source effectiveDate = function
         | NoDog ->
@@ -132,8 +132,8 @@ module Execute =
         | Hungry ->
             DogEvent.Ate 
             |> success source effectiveDate
-        | _ ->
-            "dog cannot eat; dog is not hungry" 
+        | state ->
+            sprintf "dog cannot eat; dog is %A" state 
             |> fail
     let sleep source effectiveDate = function
         | NoDog ->
@@ -142,8 +142,8 @@ module Execute =
         | Tired _ ->
             DogEvent.Slept 
             |> success source effectiveDate
-        | _ ->
-            "dog cannot sleep; dog is not tired" 
+        | state ->
+            sprintf "dog cannot sleep; dog is %A" state 
             |> fail
     let wake source effectiveDate = function
         | NoDog ->
@@ -151,15 +151,17 @@ module Execute =
             |> fail
         | Asleep _ ->
             DogEvent.Woke |> success source effectiveDate
-        | _ ->
-            "dog cannot wake up; dog is not asleep" |> fail
+        | state ->
+            sprintf "dog cannot wake; dog is %A" state 
+            |> fail
     let play source effectiveDate = function
         | NoDog ->
             "dog cannot play; dog does not exist" |> fail
         | Bored _ ->
             DogEvent.Played |> success source effectiveDate
-        | _ ->
-            "dog cannot play; dog is not bored" |> fail
+        | state ->
+            sprintf "dog cannot play; dog is %A" state 
+            |> fail
 
 let decide : Decide =
     fun state command ->

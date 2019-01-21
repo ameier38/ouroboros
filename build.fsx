@@ -13,20 +13,22 @@ open Fake.IO.Globbing.Operators
 open System.IO
 
 let paketExe = Path.Combine(__SOURCE_DIRECTORY__, ".paket", "paket.exe")
-let cleanPublish = 
+let ouroborosProject = Path.Combine(__SOURCE_DIRECTORY__, "src", "Ouroboros", "Ouroboros.fsproj")
+
+let publishDir = 
     !! "src/*/out"
-let cleanBuild = 
+let buildDir = 
     !! "src/*/bin"
     ++ "src/*/obj"
 let ouroborosSolution = "Ouroboros.sln"
 
 Target.create "CleanPublish" (fun _ ->
     Trace.trace "Cleaning out directories..."
-    Shell.cleanDirs cleanPublish)
+    Shell.cleanDirs publishDir)
 
 Target.create "CleanBuild" (fun _ ->
     Trace.trace "Cleaning build directories..."
-    Shell.cleanDirs cleanBuild)
+    Shell.cleanDirs buildDir)
 
 Target.create "Install" (fun _ ->
     Trace.trace "Installing dependencies..."
@@ -53,20 +55,69 @@ Target.create "Publish" (fun _ ->
 
 Target.create "Serve" (fun _ ->
     Trace.trace "Serving test API..."
-    DotNet.exec id "run" "--project src/Dog/Dog.fsproj"
-    |> ignore)
+    match DotNet.exec id "run" "--project src/Dog/Dog.fsproj" with
+    | {ExitCode = 0} -> printfn "Success!"
+    | errorResult ->
+        errorResult.Errors
+        |> String.concat "\n"
+        |> failwith)
 
 Target.create "Test" (fun _ ->
     Trace.trace "Running unit tests..."
     DotNet.exec id "run" "--project src/Tests/Tests.fsproj"
     |> ignore)
 
+Target.create "Smoke" (fun _ ->
+    Trace.trace "Running smoke tests..."
+    let (exitCode, messages) = 
+        Fsi.exec 
+            (fun p -> { p with TargetProfile = Fsi.Profile.NetStandard } ) 
+            "smoke.fsx" 
+            []
+    match exitCode with
+    | 0 -> 
+        messages
+        |> List.iter Trace.trace
+    | _ -> 
+        messages
+        |> List.iter Trace.traceError
+        failwith "Error!")
+
+Target.create "Pack" (fun _ ->
+    Trace.trace "Creating nuget package..."
+    
+    DotNet.pack (fun p ->
+        { p with
+            Configuration = DotNet.BuildConfiguration.Release})
+        ouroborosProject)
+
+Target.create "Push" (fun _ ->
+    Trace.trace "Pushing nuget package..."
+    // FIXME: use DotNet.push https://github.com/fsharp/FAKE/pull/2229
+    let accessKey = Environment.environVar "NUGET_API_KEY"
+    let packagePath = 
+        !! "src/Ouroboros/bin/Release/*.nupkg"
+        |> Seq.toList
+        |> List.head
+    Trace.tracefn "found nuget package %s" packagePath
+    let keyArg = sprintf "-k %s" accessKey
+    let sourceArg = "-s https://api.nuget.org/v3/index.json"
+    let args = sprintf "%s %s %s" packagePath keyArg sourceArg
+    match DotNet.exec id "nuget push" args with
+    | { ExitCode = 0 } ->
+        printfn "Success!"
+    | errorResult ->
+        errorResult.Errors
+        |> String.concat "\n"
+        |> failwith) 
+
 open Fake.Core.TargetOperators
 
-"CleanPublish" 
- ?=> "Install"
- ?=> "Restore"
- ?=> "Test"
- ?=> "Publish"
+"Install" 
+ ==> "Smoke"
+
+"Install"
+ ==> "Pack"
+ ==> "Push"
 
 Target.runOrDefault "Test"

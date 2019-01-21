@@ -13,3 +13,6 @@ temp
 
 ### FAKE ###
 .fake
+
+### NuGet ###
+NuGet

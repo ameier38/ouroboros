@@ -16,5 +16,8 @@ let main argv =
                   path "/sleep" >=> createHandler (handleCommand DogCommandDto.Sleep)
                   path "/wake" >=> createHandler (handleCommand DogCommandDto.Wake)
                   path "/play" >=> createHandler (handleCommand DogCommandDto.Play) ] ]
-    startWebServer defaultConfig api
+    let config =
+        { defaultConfig with
+            bindings = [ HttpBinding.createSimple HTTP "0.0.0.0" 8080 ] }
+    startWebServer config api
     0

@@ -93,6 +93,8 @@ Back in the original shell, deploy the test service.
 
 ## Improvements
 - [ ] Migrate to [SwaggerProvider](https://github.com/fsprojects/SwaggerProvider/pull/92)
+- [ ] Add ability to reconnect if Event Store connection is dropped in API
+- [ ] Add logging
 
 ## References
 Below are a list of references used to create Ouroboros.

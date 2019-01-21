@@ -2,6 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Ouroboros</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\paket-files\ameier38\fsharp-utilities\src\Result.fs">
