@@ -1,7 +1,14 @@
-[![CircleCI](https://circleci.com/gh/ameier38/ouroboros/tree/develop.svg?style=svg)](https://circleci.com/gh/ameier38/ouroboros/tree/develop)
-
 # Ouroboros
-F# functions and types to help with building event sourced applications.
+![nuget version](https://img.shields.io/nuget/v/Ouroboros.svg)
+![downloads](https://img.shields.io/nuget/dt/Ouroboros.svg)
+___
+__Ouroboros__ is a set of types and functions for building 
+event sourced applications in F#. Ouroboros aims to be simple 
+and flexible and best used for modeling bi-temporal domains
+with complex state transitions.
+
+> For applications with a large number of events checkout out
+[Jet.com's Equinox](https://github.com/jet/equinox).
 
 ## Usage
 1) To use Ouroboros in your own project, first add it to your `paket.dependencies` file:
@@ -10,36 +17,37 @@ F# functions and types to help with building event sourced applications.
 
     nuget Ouroboros
     ```
-    > For an example `paket.dependencies` file see the [file in this repository](./paket.dependencies)
+    > For an example `paket.dependencies` file see the 
+    [example in this repository](./paket.dependencies)
 
 2) Next, add a reference to the dependency in your `paket.references` file:
     ```
     Ouroboros
     ```
-    > For an example `paket.references` file see the [file in the Tests directory](./src/Tests/paket.references)
+    > For an example `paket.references` file see the 
+    [example in this repository](./src/Dog/paket.references)
 
 3) Then install the dependencies
     ```
     $ .paket/paket.exe install
     ```
 
-4) See [Dog.Implementation.fs](./src/Tests/Dog.Implementation.fs) for an example on how to incorporate into your project.
+4) See [the example application](./src/Dog/README.md) for a
+complete project using Ouroboros.
 
 ## Development
 
 ### Prerequisites:
 
-- Docker: See [andrewcmeier.com/win-dev](https://andrewcmeier.com/win-dev#docker)
-for information on how to install on Windows.
-- kubectl: See [andrewcmeier.com/win-dev](https://andrewcmeier.com/win-dev#kubectl)
-for information on how to install on Windows.
+- `dotnet` CLI: See [andrewcmeier.com/win-dev](https://andrewcmeier.com/win-dev#dotnet)
+for how to install on Windows.
 
 ### Structure
 ```
 src
 ├── Dog                     --> Example application
 ├── Ouroboros               --> Main library
-├── Ouroboros.EventStore    --> Event Store integration
+├── Ouroboros.EventStore    --> Event Store backend
 └── Tests                   --> Test suite
 ```
 
@@ -53,42 +61,6 @@ Navigate to the `Tests` directory and run the console application.
 ```
 > cd src/Tests
 > dotnet run
-```
-
-### Advanced Testing
-First, spin up a local Kubernetes cluster. See instructions for 
-creating a local Kubernetes cluster [here](https://andrewcmeier.com/win-dev#kubernetes).
-
-Next, install Helm. See instructions for installing Helm 
-on [their website](https://docs.helm.sh/using_helm/#quickstart).
-
-Next, install Event Store.
-```
-> helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
-> helm install incubator/eventstore
-```
-
-Next, install OpenFaas. You can find instructions 
-[here](https://github.com/openfaas/faas-netes/tree/master/chart/openfaas).
-
-Then, change the `image` value in the `stack.yml` file to your own Docker registry.
-> If it is a private image you can use the [`create-registry-secret` script](scripts/create-registry-secret.sh)
-to create a Docker registry secret.
-
-At the root of this repository, run the following to build and push the test images.
-```
-> faas build
-> faas push
-```
-
-In another shell, forward the port of the OpenFaas gateway to a local port.
-```
-> kubectl port-forward --namespace=openfaas svc/gateway 8080
-```
-
-Back in the original shell, deploy the test service.
-```
-> faas deploy
 ```
 
 ## Improvements
