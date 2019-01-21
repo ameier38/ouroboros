@@ -23,13 +23,13 @@ steps:
           healthcheck:
             test: ["CMD", "curl", "-f", "http://eventstore:2113/users/admin"]
     composition_candidates:
-        test:
-          image: ${{build_ouroboros}}
-          environment:
-            - EVENTSTORE_HOST=eventstore
-            - EVENTSTORE_PORT=1113
-            - EVENTSTORE_USER=admin
-            - EVENTSTORE_PASSWORD=changeit
+      test:
+        image: ${{build_ouroboros}}
+        environment:
+          - EVENTSTORE_HOST=eventstore
+          - EVENTSTORE_PORT=1113
+          - EVENTSTORE_USER=admin
+          - EVENTSTORE_PASSWORD=changeit
   run_smoke_tests:
     stage: test
     type: composition
@@ -44,19 +44,20 @@ steps:
             test: ["CMD", "curl", "-f", "http://eventstore:2113/users/admin"]
         api:
           image: ${{build_ouroboros}}
-          expose: "8080"
+          expose: 
+            - "8080"
           command: dotnet "Dog/Dog.dll"
           depends_on:
             - eventstore
           healthcheck:
             test: ["CMD", "curl", "-f", "http://api:8080/_healthz"]
     composition_candidates:
-        test:
-          image: ameier38/dotnet-mono:2.2
-          command: fake build -t Smoke
-          environment:
-            - API_HOST=api
-            - API_PORT=8080
+      test:
+        image: ameier38/dotnet-mono:2.2
+        command: fake build -t Smoke
+        environment:
+          - API_HOST=api
+          - API_PORT=8080
   deploy_ouroboros:
     stage: deploy
     title: Deploy Ouroboros
