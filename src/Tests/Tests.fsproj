@@ -2,31 +2,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\..\paket-files\ameier38\fsharp-common\DotEnv.fs">
-      <Paket>True</Paket>
-      <Link>paket-files/DotEnv.fs</Link>
-    </Compile>
-    <Compile Include="..\..\paket-files\ameier38\fsharp-common\SimpleType.fs">
-      <Paket>True</Paket>
-      <Link>paket-files/SimpleType.fs</Link>
-    </Compile>
-    <Compile Include="..\..\paket-files\ameier38\fsharp-common\Result.fs">
-      <Paket>True</Paket>
-      <Link>paket-files/Result.fs</Link>
-    </Compile>
-    <Compile Include="Config.fs" />
-    <Compile Include="Dog.SimpleTypes.fs" />
-    <Compile Include="Dog.PublicTypes.fs" />
-    <Compile Include="Dog.Dto.fs" />
-    <Compile Include="Dog.Implementation.fs" />
-    <Compile Include="Dog.Projection.fs" />
+    <Compile Include="Test.Infrastructure.fs" />
+    <Compile Include="Test.Ouroboros.fs" />
+    <Compile Include="Test.Dog.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Ouroboros\Ouroboros.fsproj" />
+    <ProjectReference Include="..\Dog\Dog.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

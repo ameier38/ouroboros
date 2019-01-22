@@ -10,3 +10,9 @@
 packages
 paket-files
 temp
+
+### FAKE ###
+.fake
+
+### NuGet ###
+NuGet

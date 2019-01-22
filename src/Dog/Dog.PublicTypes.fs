@@ -1,4 +1,4 @@
-namespace Test.Dog
+namespace Dog
 
 open Ouroboros
 
@@ -7,6 +7,7 @@ type Dog =
       Breed: Breed }
 
 type DogEvent =
+    | Reversed of EventNumber
     | Born of Dog
     | Ate
     | Slept
@@ -14,17 +15,15 @@ type DogEvent =
     | Played
 
 type DogCommand =
+    | Reverse of EventNumber
     | Create of Dog
     | Eat
     | Sleep
     | Wake
     | Play
 
-type DogError =
-    | IO of string
-    | Validation of string
-
 type DogState =
+    | Corrupt of string
     | NoDog
     | Bored
     | Hungry

@@ -1,0 +1,66 @@
+version: '1.0'
+stages:
+  - build
+  - test
+  - deploy
+steps:
+  build_ouroboros:
+    stage: build
+    type: build
+    title: Build Ouroboros
+    description: Build Ouroboros test image
+    image_name: ouroboros
+  run_tests:
+    stage: test
+    type: composition
+    title: Test Ouroboros
+    description: Run Ouroboros tests
+    composition:
+      version: '3'
+      services:
+        eventstore:
+          image: eventstore/eventstore
+    composition_candidates:
+      test:
+        image: ${{build_ouroboros}}
+        command: bash -c "./wait-for-it.sh http://eventstore:2113/users/admin && dotnet src/Tests/out/Tests.dll"
+        environment:
+          - EVENTSTORE_HOST=eventstore
+          - EVENTSTORE_PORT=1113
+          - EVENTSTORE_USER=admin
+          - EVENTSTORE_PASSWORD=changeit
+  run_smoke_tests:
+    stage: test
+    type: composition
+    title: Smoke Ouroboros
+    description: Run Ouroboros smoke tests
+    composition:
+      version: '3'
+      services:
+        eventstore:
+          image: eventstore/eventstore
+        api:
+          image: ${{build_ouroboros}}
+          expose: 
+            - "8080"
+          command: bash -c "./wait-for-it.sh http://eventstore:2113/users/admin && dotnet src/Dog/out/Dog.dll"
+          depends_on:
+            - eventstore
+    composition_candidates:
+      test:
+        image: ${{build_ouroboros}}
+        command: bash -c "./wait-for-it.sh http://api:8080/_healthz && fake build -t Smoke"
+        environment:
+          - API_HOST=api
+          - API_PORT=8080
+  deploy_ouroboros:
+    stage: deploy
+    title: Deploy Ouroboros
+    description: Deploy Ouroboros NuGet package
+    image: ameier38/dotnet-mono:2.2
+    commands:
+      - fake build -t Push
+    when:
+      branch:
+        only:
+          - master

@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <RootNamespace>Ouroboros</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\paket-files\ameier38\fsharp-utilities\src\Result.fs">
@@ -17,11 +17,18 @@
       <Paket>True</Paket>
       <Link>paket-files/Env.fs</Link>
     </Compile>
-    <Compile Include="Ouroboros.SimpleTypes.fs" />
-    <Compile Include="Ouroboros.PublicTypes.fs" />
-    <Compile Include="Ouroboros.Infrastructure.fs" />
-    <Compile Include="Ouroboros.Dto.fs" />
-    <Compile Include="Ouroboros.fs" />
+    <Compile Include="Dog.Infrastructure.fs" />
+    <Compile Include="Dog.SimpleTypes.fs" />
+    <Compile Include="Dog.PublicTypes.fs" />
+    <Compile Include="Dog.Dto.fs" />
+    <Compile Include="Dog.Implementation.fs" />
+    <Compile Include="Dog.Projection.fs" />
+    <Compile Include="Dog.Api.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ouroboros\Ouroboros.fsproj" />
+    <ProjectReference Include="..\Ouroboros.EventStore\Ouroboros.EventStore.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

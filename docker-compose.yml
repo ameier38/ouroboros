@@ -3,13 +3,26 @@ services:
   eventstore:
     image: eventstore/eventstore
     ports:
-     - "2113:2113"
-     - "1113:1113"
-  test:
+      - "2113:2113"
+      - "1113:1113"
+  api:
     build:
       context: .
+    command: bash -c "./wait-for-it.sh http://eventstore:2113/users/admin && dotnet src/Dog/out/Dog.dll"
     environment:
       - EVENTSTORE_HOST=eventstore
       - EVENTSTORE_PORT=1113
       - EVENTSTORE_USER=admin
       - EVENTSTORE_PASSWORD=changeit
+    ports:
+      - "8080:8080"
+  test:
+    image: ameier38/dotnet-mono:2.2
+    command: bash -c "./wait-for-it.sh http://api:8080/_healthz && fake build -t Smoke"
+    working_dir: /ouroboros
+    environment:
+      - API_HOST=api
+      - API_PORT=8080
+    volumes:
+      - .:/ouroboros
+      - /ouroboros/.fake/
