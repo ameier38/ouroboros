@@ -1,10 +1,6 @@
 # use build image to compile
 FROM ameier38/dotnet-mono:2.2 as builder
 
-# install wait-for-it
-RUN apt-get update \
-    && apt-get install wait-for-it
-
 # prevent sending metrics to microsoft
 ENV DOTNET_CLI_TELEMETRY_OPTOUT 1
 
