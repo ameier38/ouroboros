@@ -8,7 +8,7 @@ services:
   api:
     build:
       context: .
-    command: dotnet Dog/Dog.dll
+    command: bash -c "./wait-for-it.sh http://eventstore:2113/users/admin && dotnet src/Dog/out/Dog.dll"
     environment:
       - EVENTSTORE_HOST=eventstore
       - EVENTSTORE_PORT=1113
@@ -18,7 +18,7 @@ services:
       - "8080:8080"
   test:
     image: ameier38/dotnet-mono:2.2
-    command: fake build -t Smoke
+    command: bash -c "./wait-for-it.sh http://api:8080/_healthz && fake build -t Smoke"
     working_dir: /ouroboros
     environment:
       - API_HOST=api
