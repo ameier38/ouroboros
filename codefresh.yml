@@ -20,11 +20,10 @@ steps:
       services:
         eventstore:
           image: eventstore/eventstore
-          healthcheck:
-            test: ["CMD", "curl", "-f", "http://eventstore:2113/users/admin"]
     composition_candidates:
       test:
         image: ${{build_ouroboros}}
+        command: wait-for-it http://eventstore:2113/users/admin -t 15 && dotnet src/Tests/out/Tests.dll
         environment:
           - EVENTSTORE_HOST=eventstore
           - EVENTSTORE_PORT=1113
@@ -40,21 +39,17 @@ steps:
       services:
         eventstore:
           image: eventstore/eventstore
-          healthcheck:
-            test: ["CMD", "curl", "-f", "http://eventstore:2113/users/admin"]
         api:
           image: ${{build_ouroboros}}
           expose: 
             - "8080"
-          command: dotnet "src/Dog/out/Dog.dll"
+          command: wait-for-it http://eventstore:2113/users/admin -t 15 && dotnet "src/Dog/out/Dog.dll"
           depends_on:
             - eventstore
-          healthcheck:
-            test: ["CMD", "curl", "-f", "http://api:8080/_healthz"]
     composition_candidates:
       test:
         image: ${{build_ouroboros}}
-        command: fake build -t Smoke
+        command: wait-for-it http://api:8080/_healthz -t 20 && fake build -t Smoke
         environment:
           - API_HOST=api
           - API_PORT=8080
