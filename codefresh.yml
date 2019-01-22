@@ -23,7 +23,7 @@ steps:
     composition_candidates:
       test:
         image: ${{build_ouroboros}}
-        command: wait-for-it http://eventstore:2113/users/admin -t 15 -s -- dotnet src/Tests/out/Tests.dll
+        command: wait-for-it http://eventstore:2113/users/admin -t 60 -s -- dotnet src/Tests/out/Tests.dll
         environment:
           - EVENTSTORE_HOST=eventstore
           - EVENTSTORE_PORT=1113
@@ -43,13 +43,13 @@ steps:
           image: ${{build_ouroboros}}
           expose: 
             - "8080"
-          command: wait-for-it http://eventstore:2113/users/admin -t 15 -s -- dotnet "src/Dog/out/Dog.dll"
+          command: wait-for-it http://eventstore:2113/users/admin -t 60 -s -- dotnet "src/Dog/out/Dog.dll"
           depends_on:
             - eventstore
     composition_candidates:
       test:
         image: ${{build_ouroboros}}
-        command: wait-for-it http://api:8080/_healthz -t 20 -s -- fake build -t Smoke
+        command: wait-for-it http://api:8080/_healthz -t 90 -s -- fake build -t Smoke
         environment:
           - API_HOST=api
           - API_PORT=8080
