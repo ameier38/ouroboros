@@ -118,6 +118,23 @@ open Fake.Core.TargetOperators
 
 "Install"
  ==> "Pack"
+
+"Pack"
  ==> "Push"
+
+"Install"
+ ==> "Restore"
+
+"Restore"
+ ==> "Build"
+
+"CleanBuild"
+ ==> "Build"
+
+"Restore"
+ ==> "Publish"
+
+"CleanPublish"
+ ==> "Publish"
 
 Target.runOrDefault "Test"
