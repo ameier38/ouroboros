@@ -10,11 +10,19 @@ steps:
     title: Build Ouroboros
     description: Build Ouroboros test image
     image_name: ouroboros
+    when:
+      branch:
+        only:
+          - develop
   run_tests:
     stage: test
     type: composition
     title: Test Ouroboros
     description: Run Ouroboros tests
+    when:
+      branch:
+        only:
+          - develop
     composition:
       version: '3'
       services:
@@ -34,6 +42,10 @@ steps:
     type: composition
     title: Smoke Ouroboros
     description: Run Ouroboros smoke tests
+    when:
+      branch:
+        only:
+          - develop
     composition:
       version: '3'
       services:
@@ -59,7 +71,9 @@ steps:
     description: Deploy Ouroboros NuGet package
     image: ameier38/dotnet-mono:2.2
     commands:
-      - fake build --nocache -t Push
+      - ls
+      - rm -rf .fake
+      - fake build -t Push
     when:
       branch:
         only:
