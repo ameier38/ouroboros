@@ -57,9 +57,12 @@ steps:
     stage: deploy
     title: Deploy Ouroboros
     description: Deploy Ouroboros NuGet package
+    no_cache: true
+    no_cf_cache: true
     image: ameier38/dotnet-mono:2.2
     commands:
-      - fake build --nocache -t Push
+      - rm -rf .fake
+      - fake build -t Push
     when:
       branch:
         only:
