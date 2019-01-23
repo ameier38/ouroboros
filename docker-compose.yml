@@ -23,6 +23,3 @@ services:
     environment:
       - API_HOST=api
       - API_PORT=8080
-    volumes:
-      - .:/ouroboros
-      - /ouroboros/.fake/

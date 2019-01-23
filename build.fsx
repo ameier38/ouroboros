@@ -141,6 +141,9 @@ open Fake.Core.TargetOperators
 "Restore"
  ==> "Publish"
 
+"CleanBuild"
+ ==> "Publish"
+
 "CleanPublish"
  ==> "Publish"
 

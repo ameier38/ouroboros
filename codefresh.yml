@@ -59,7 +59,7 @@ steps:
     description: Deploy Ouroboros NuGet package
     image: ameier38/dotnet-mono:2.2
     commands:
-      - fake build -t Push
+      - fake build --nocache -t Push
     when:
       branch:
         only:

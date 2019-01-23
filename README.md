@@ -95,8 +95,9 @@ Command Query Responsibility Segregation (CQRS), and Event Sourcing (ES).
 - Remove `DeletedEventType` and instead allow caller to determine
 which events should be included when replaying by adding a `filter`
 function to the aggregate.
-- Allow caller to determine sort order of replayed events. Default
-order would be by `EffectiveDate` and `EffectiveOrder`.
+- Allow caller to filter stream when replaying.
+- Allow caller to enrich stream when replaying.
+- Allow caller to sort stream when replaying.
 - Moved Event Store implementation into separate project.
 - Update error type.
 

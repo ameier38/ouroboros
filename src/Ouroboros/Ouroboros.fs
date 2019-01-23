@@ -113,7 +113,7 @@ module Repository =
 
 module QueryHandler =
     let create
-        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T>)
+        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent>)
         (repo:Repository<'DomainEvent>) =
         let replay
             (entityId:EntityId) 
@@ -133,11 +133,12 @@ module QueryHandler =
                     recordedEvents
                     |> aggregate.filter
                     |> List.filter onOrBeforeObservationDate
+                    |> aggregate.enrich
+                    |> aggregate.sort
             }
         let reconstitute
             (recordedEvents:RecordedEvent<'DomainEvent> list) =
             recordedEvents
-            |> List.sortBy aggregate.sortBy
             |> List.map (fun e -> e.Data)
             |> List.fold aggregate.evolve aggregate.zero
         { replay = replay
@@ -145,7 +146,7 @@ module QueryHandler =
 
 module CommandHandler =
     let create
-        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T>)
+        (aggregate:Aggregate<'DomainState,'DomainCommand,'DomainEvent>)
         (repo:Repository<'DomainEvent>) =
         let queryHandler = QueryHandler.create aggregate repo
         let execute 
