@@ -63,10 +63,13 @@ type Filter<'DomainEvent> =
     RecordedEvent<'DomainEvent> list
      -> RecordedEvent<'DomainEvent> list
 
-type SortBy<'DomainEvent, 
-            'T when 'T : comparison> =
-    RecordedEvent<'DomainEvent> 
-     -> 'T
+type Enrich<'DomainEvent> =
+    RecordedEvent<'DomainEvent> list
+     -> RecordedEvent<'DomainEvent> list
+
+type Sort<'DomainEvent> =
+    RecordedEvent<'DomainEvent> list
+     -> RecordedEvent<'DomainEvent> list
 
 type Evolve<'DomainState,'DomainEvent> =
     'DomainState
@@ -78,10 +81,11 @@ type Decide<'DomainState,'DomainCommand,'DomainEvent> =
      -> Command<'DomainCommand>
      -> AsyncResult<Event<'DomainEvent> list,OuroborosError>
 
-type Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T when 'T : comparison> =
+type Aggregate<'DomainState,'DomainCommand,'DomainEvent> =
     { zero: 'DomainState 
       filter: Filter<'DomainEvent>
-      sortBy: SortBy<'DomainEvent,'T>
+      enrich: Enrich<'DomainEvent>
+      sort: Sort<'DomainEvent>
       evolve: Evolve<'DomainState,'DomainEvent>
       decide: Decide<'DomainState,'DomainCommand,'DomainEvent> }
 
