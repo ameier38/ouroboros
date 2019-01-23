@@ -18,7 +18,7 @@ services:
       - "8080:8080"
   test:
     image: ameier38/dotnet-mono:2.2
-    command: bash -c "./wait-for-it.sh http://api:8080/_healthz && fake build --nocache -t Smoke"
+    command: bash -c "./wait-for-it.sh http://api:8080/_healthz && fake build -t Smoke"
     working_dir: /ouroboros
     environment:
       - API_HOST=api
