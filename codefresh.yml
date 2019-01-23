@@ -57,7 +57,8 @@ steps:
     stage: deploy
     title: Deploy Ouroboros
     description: Deploy Ouroboros NuGet package
-    image: ameier38/dotnet-mono:2.2
+    image: ${{build_ouroboros}}
+    working_directory: IMAGE_WORK_DIR
     commands:
       - fake build -t Push
     when:
