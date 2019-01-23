@@ -119,6 +119,13 @@ open Fake.Core.TargetOperators
 "Install"
  ==> "Pack"
 
+"CleanBuild"
+ ==> "Pack"
+
+"CleanBuild"
+ ?=> "Install"
+ ?=> "Pack"
+
 "Pack"
  ==> "Push"
 
