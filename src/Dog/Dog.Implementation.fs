@@ -46,7 +46,7 @@ module DogEvent =
         |> Result.mapError DomainError
         |> Result.bind DogEventDto.toDomain
 
-module Apply =
+module Evolve =
     let born _ = function
         | NoDog -> Hungry
         | _ -> "dog cannot be born; dog already exists" |> Corrupt
@@ -105,7 +105,7 @@ module Event =
                       Meta = eventMeta }
             }
 
-module Execute =
+module Decide =
     let success source effectiveDate event = 
         event
         |> Event.fromDogEvent source effectiveDate
@@ -171,25 +171,25 @@ let decide : Decide =
               Source = source } = commandMeta
         match commandData with
         | DogCommand.Reverse eventNumber ->
-            Execute.reverse source effectiveDate eventNumber state
+            Decide.reverse source effectiveDate eventNumber state
         | DogCommand.Create dog -> 
-            Execute.create source effectiveDate dog state
+            Decide.create source effectiveDate dog state
         | DogCommand.Eat ->
-            Execute.eat source effectiveDate state
+            Decide.eat source effectiveDate state
         | DogCommand.Sleep ->
-            Execute.sleep source effectiveDate state
+            Decide.sleep source effectiveDate state
         | DogCommand.Wake ->
-            Execute.wake source effectiveDate state
+            Decide.wake source effectiveDate state
         | DogCommand.Play ->
-            Execute.play source effectiveDate state
+            Decide.play source effectiveDate state
 let evolve : Evolve =
     fun state -> function
         | DogEvent.Reversed _ -> state
-        | DogEvent.Born dog -> Apply.born dog state
-        | DogEvent.Ate -> Apply.ate state
-        | DogEvent.Slept -> Apply.slept state
-        | DogEvent.Woke -> Apply.woke state
-        | DogEvent.Played -> Apply.played state
+        | DogEvent.Born dog -> Evolve.born dog state
+        | DogEvent.Ate -> Evolve.ate state
+        | DogEvent.Slept -> Evolve.slept state
+        | DogEvent.Woke -> Evolve.woke state
+        | DogEvent.Played -> Evolve.played state
 
 let filter : Filter<DogEvent> =
     fun (recordedEvents:RecordedEvent<DogEvent> list) ->
@@ -206,14 +206,17 @@ let filter : Filter<DogEvent> =
             |> List.contains domainEvent.EventNumber 
             |> not) 
 
-let sortBy : SortBy<DogEvent,EffectiveDate * EffectiveOrder> =
-    fun (recordedEvent:RecordedEvent<DogEvent>) ->
-        recordedEvent.Meta.EffectiveDate, recordedEvent.Meta.EffectiveOrder
+let sort: Sort<DogEvent> =
+    fun (recordedEvents:RecordedEvent<DogEvent> list) ->
+        recordedEvents
+        |> List.sortBy (fun e -> e.Meta.EffectiveDate, e.Meta.EffectiveOrder)
+        
 
 let aggregate =
     { zero = NoDog
       filter = filter
-      sortBy = sortBy
+      enrich = id
+      sort = sort
       evolve = evolve
       decide = decide }
 
