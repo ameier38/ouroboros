@@ -8,6 +8,10 @@ type Filter =
     RecordedEvent<DogEvent> list
      -> RecordedEvent<DogEvent> list
 
+type SortBy =
+    Event<DogEvent>
+     -> EffectiveDate * EffectiveOrder
+
 type Evolve =
     DogState
      -> DogEvent
@@ -206,17 +210,15 @@ let filter : Filter<DogEvent> =
             |> List.contains domainEvent.EventNumber 
             |> not) 
 
-let sort: Sort<DogEvent> =
-    fun (recordedEvents:RecordedEvent<DogEvent> list) ->
-        recordedEvents
-        |> List.sortBy (fun e -> e.Meta.EffectiveDate, e.Meta.EffectiveOrder)
-        
+let sortBy: SortBy<DogEvent,EffectiveDate * EffectiveOrder> =
+    fun (event:Event<DogEvent>) ->
+        event.Meta.EffectiveDate, event.Meta.EffectiveOrder
 
 let aggregate =
     { zero = NoDog
       filter = filter
       enrich = id
-      sort = sort
+      sortBy = sortBy
       evolve = evolve
       decide = decide }
 
@@ -239,17 +241,8 @@ let repoResult =
         return repo
     }
 
-let queryHandlerResult =
+let handlerResult =
     result {
         let! repo = repoResult
-        return QueryHandler.create aggregate repo
-    }
-
-let commandHandlerResult =
-    result {
-        let! repo = repoResult
-        return 
-            CommandHandler.create 
-                aggregate 
-                repo
+        return Handler.create aggregate repo
     }

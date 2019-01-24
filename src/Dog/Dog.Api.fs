@@ -9,8 +9,8 @@ open Suave.Operators
 
 let executeCommand dogId dogCommand =
     asyncResult {
-        let! commandHandler = commandHandlerResult |> AsyncResult.ofResult
-        return! commandHandler.execute dogId dogCommand
+        let! handler = handlerResult |> AsyncResult.ofResult
+        return! handler.execute dogId dogCommand
     }
 
 let JSON data =
@@ -31,8 +31,8 @@ let createHandler (handle:byte [] -> AsyncResult<string,OuroborosError>) =
 
 let handleGet (body:byte []) : AsyncResult<string,OuroborosError> =
     asyncResult {
-        let! queryHandler = 
-            queryHandlerResult 
+        let! handler = 
+            handlerResult 
             |> AsyncResult.ofResult
         let! getRequest =
             body
@@ -42,7 +42,7 @@ let handleGet (body:byte []) : AsyncResult<string,OuroborosError> =
         printfn "received get request %A" getRequest
         let! dogStateSchema =
             getRequest
-            ||> Projection.dogState queryHandler
+            ||> Projection.dogState handler
         let data =
             dogStateSchema
             |> DogStateSchema.serializeToJson
