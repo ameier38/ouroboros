@@ -64,12 +64,12 @@ type Filter<'DomainEvent> =
      -> RecordedEvent<'DomainEvent> list
 
 type Enrich<'DomainEvent> =
-    RecordedEvent<'DomainEvent> list
-     -> RecordedEvent<'DomainEvent> list
+    Event<'DomainEvent> list
+     -> Event<'DomainEvent> list
 
-type Sort<'DomainEvent> =
-    RecordedEvent<'DomainEvent> list
-     -> RecordedEvent<'DomainEvent> list
+type SortBy<'DomainEvent,'T when 'T : comparison> =
+    Event<'DomainEvent>
+     -> 'T
 
 type Evolve<'DomainState,'DomainEvent> =
     'DomainState
@@ -81,11 +81,11 @@ type Decide<'DomainState,'DomainCommand,'DomainEvent> =
      -> Command<'DomainCommand>
      -> AsyncResult<Event<'DomainEvent> list,OuroborosError>
 
-type Aggregate<'DomainState,'DomainCommand,'DomainEvent> =
+type Aggregate<'DomainState,'DomainCommand,'DomainEvent,'T when 'T : comparison> =
     { zero: 'DomainState 
       filter: Filter<'DomainEvent>
       enrich: Enrich<'DomainEvent>
-      sort: Sort<'DomainEvent>
+      sortBy: SortBy<'DomainEvent,'T>
       evolve: Evolve<'DomainState,'DomainEvent>
       decide: Decide<'DomainState,'DomainCommand,'DomainEvent> }
 
@@ -143,27 +143,23 @@ type Repository<'DomainEvent> =
       load: Load<'DomainEvent>
       commit: Commit<'DomainEvent> }
 
-/// Command handler types
+/// Handler types
+
+type Replay<'DomainEvent> =
+    EntityId
+     -> ObservationDate
+     -> AsyncResult<Event<'DomainEvent> list,OuroborosError>
+
+type Reconstitute<'DomainEvent,'DomainState> =
+    Event<'DomainEvent> list
+     -> 'DomainState
 
 type Execute<'DomainCommand,'DomainEvent> =
     EntityId
      -> Command<'DomainCommand>
      -> AsyncResult<Event<'DomainEvent> list,OuroborosError>
 
-type CommandHandler<'DomainCommand,'DomainEvent> =
-    { execute: Execute<'DomainCommand,'DomainEvent> }
-
-/// Query handler types
-
-type Replay<'DomainEvent> =
-    EntityId
-     -> ObservationDate
-     -> AsyncResult<RecordedEvent<'DomainEvent> list,OuroborosError>
-
-type Reconstitute<'DomainEvent,'DomainState> =
-    RecordedEvent<'DomainEvent> list
-     -> 'DomainState
-
-type QueryHandler<'DomainState,'DomainEvent> =
+type Handler<'DomainState,'DomainCommand,'DomainEvent> =
     { replay: Replay<'DomainEvent>
-      reconstitute: Reconstitute<'DomainEvent,'DomainState> }
+      reconstitute: Reconstitute<'DomainEvent,'DomainState>
+      execute: Execute<'DomainCommand,'DomainEvent> }
