@@ -9,13 +9,13 @@ let mealsFolder acc event =
     | _ -> acc
 
 let mealCount
-    (queryHandler:QueryHandler<DogState,DogEvent>) =
+    (handler:Handler<DogState,DogCommand,DogEvent>) =
     fun (dogId:EntityId) (observationDate:ObservationDate) ->
         asyncResult {
             let initialMealCount = 0
             let! recordedEvents = 
                 (dogId, observationDate)
-                ||> queryHandler.replay 
+                ||> handler.replay 
             return
                 recordedEvents
                 |> List.map (fun e -> e.Data)
@@ -23,21 +23,21 @@ let mealCount
         }
 
 let dogState
-    (queryHandler:QueryHandler<DogState,DogEvent>) =
+    (handler:Handler<DogState,DogCommand,DogEvent>) =
     fun (dogId:EntityId) (observationDate:ObservationDate) ->
         asyncResult {
-            let! recordedEvents =
+            let! events =
                 (dogId, observationDate)
-                ||> queryHandler.replay 
+                ||> handler.replay 
             let currentState = 
-                recordedEvents
-                |> queryHandler.reconstitute
+                events
+                |> handler.reconstitute
                 |> fun state -> state.ToString()
             let chooseBornEvent = function
-                | {RecordedEvent.Data = (DogEvent.Born dog)} -> Some dog
+                | {Event.Data = (DogEvent.Born dog)} -> Some dog
                 | _ -> None
             let dogOpt = 
-                recordedEvents
+                events
                 |> List.choose chooseBornEvent 
                 |> function
                    | [] -> None

@@ -27,8 +27,8 @@ let createCommand source effectiveDate (command:DogCommand) =
 let executeCommand dogId =
     fun command ->
         asyncResult {
-            let! commandHandler = commandHandlerResult |> AsyncResult.ofResult
-            let execute = commandHandler.execute dogId
+            let! handler = handlerResult |> AsyncResult.ofResult
+            let execute = handler.execute dogId
             let! newEvents = execute command
             do! AsyncResult.sleep 500
             return newEvents
@@ -77,8 +77,8 @@ let testBenji =
         |> Expect.isOk "should be ok" 
 
         asyncResult {
-            let! queryHandler = queryHandlerResult |> AsyncResult.ofResult
-            let! mealCount = Projection.mealCount queryHandler benjiId Latest
+            let! handler = handlerResult |> AsyncResult.ofResult
+            let! mealCount = Projection.mealCount handler benjiId Latest
             Expect.equal "meal count should equal two" mealCount 2
         }
         |> Async.RunSynchronously
@@ -129,8 +129,8 @@ let testMinnie =
         |> Expect.isOk "should be ok"
 
         asyncResult {
-            let! queryHandler = queryHandlerResult |> AsyncResult.ofResult
-            let! mealCount = Projection.mealCount queryHandler minnieId Latest
+            let! handler = handlerResult |> AsyncResult.ofResult
+            let! mealCount = Projection.mealCount handler minnieId Latest
             Expect.equal "meal count shoud equal one" 1 mealCount
         }
         |> Async.RunSynchronously
@@ -183,8 +183,8 @@ let testRaggles =
         |> Expect.isOk "should be ok"
 
         asyncResult {
-            let! queryHandler = queryHandlerResult |> AsyncResult.ofResult
-            let! mealCount = Projection.mealCount queryHandler ragglesId Latest
+            let! handler = handlerResult |> AsyncResult.ofResult
+            let! mealCount = Projection.mealCount handler ragglesId Latest
             Expect.equal "meal count shoud equal zero" 0 mealCount
         }
         |> Async.RunSynchronously
